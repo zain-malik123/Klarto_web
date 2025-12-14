@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:klarto/widgets/home/toolbar.dart';
+import 'package:klarto/widgets/home/dock_header_and_form.dart';
+import 'package:klarto/widgets/home/todo_list.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -6,15 +9,24 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Klarto Home'),
-        backgroundColor: const Color(0xFF3D4CD6),
-      ),
-      body: const Center(
-        child: Text(
-          'Welcome! You are logged in.',
-          style: TextStyle(fontSize: 24),
-        ),
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          const Toolbar(),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(120, 28, 120, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const DockHeaderAndForm(),
+                  const SizedBox(height: 32),
+                  const TodoList(),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

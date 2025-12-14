@@ -30,3 +30,9 @@ flutter:
   assets:
     - assets/images/
     - assets/icons/
+    - assets/icons/add-square.svg
+    - assets/icons/edit.svg
+    - assets/icons/heart.svg
+    - assets/icons/link.svg
+    - assets/icons/three-dots.svg
+    - assets/icons/trash.svg

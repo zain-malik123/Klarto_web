@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:klarto/apis/auth_api_service.dart';
-import 'package:klarto/screens/home_screen.dart';
+import 'package:klarto/screens/main_app_shell.dart';
 import 'package:klarto/screens/signup_screen.dart';
 import 'package:klarto/screens/reset_password_screen.dart';
 import 'package:klarto/widgets/feature_tile.dart';
@@ -97,7 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // TODO: Securely store the token (result['token'])
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
+          MaterialPageRoute(builder: (context) => const MainAppShell()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
