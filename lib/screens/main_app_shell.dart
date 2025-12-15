@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:klarto/screens/filters_and_labels_screen.dart';
+import 'package:klarto/screens/today_screen.dart';
 import 'package:klarto/widgets/home/toolbar.dart';
 import 'package:klarto/widgets/home/sidebar.dart';
 import 'package:klarto/widgets/home/dock_header_and_form.dart';
@@ -17,6 +18,7 @@ class MainAppShell extends StatefulWidget {
 class _MainAppShellState extends State<MainAppShell> {
   String _selectedPage = 'dock';
   late Future<List<Todo>> _todosFuture;
+  final GlobalKey<TodayScreenState> _todayScreenKey = GlobalKey<TodayScreenState>();
   final TodosApiService _todosApiService = TodosApiService();
 
   @override
@@ -28,6 +30,9 @@ class _MainAppShellState extends State<MainAppShell> {
   void _refreshTodos() {
     setState(() {
       _todosFuture = _fetchTodos();
+      // Also refresh the Today screen if it's visible or might become visible
+      // The ?. operator safely handles cases where the key is not yet attached to a widget.
+      _todayScreenKey.currentState?.refresh();
     });
   }
 
@@ -49,6 +54,8 @@ class _MainAppShellState extends State<MainAppShell> {
     switch (_selectedPage) {
       case 'filters_and_labels':
         return const FiltersAndLabelsScreen();
+      case 'today':
+        return TodayScreen(key: _todayScreenKey, onNeedsRefresh: _refreshTodos);
       case 'dock':
       default:
         // The main content for the home screen.

@@ -44,7 +44,19 @@ class TodoItem extends StatelessWidget {
     if (dateStr == null) return '';
     try {
       final date = DateTime.parse(dateStr);
-      return DateFormat('EEE, MMM d').format(date);
+      String formattedString = DateFormat('EEE').format(date); // e.g., "Fri"
+
+      if (todo.dueTime != null) {
+        // The dueTime from DB is 'HH:mm:ss'. We parse it to format it nicely.
+        final timeParts = todo.dueTime!.split(':');
+        if (timeParts.length >= 2) {
+          final dummyDate = DateTime(2000, 1, 1, int.parse(timeParts[0]), int.parse(timeParts[1]));
+          // Use intl's locale-aware time formatting (e.g., "1:00 PM")
+          final formattedTime = DateFormat.jm().format(dummyDate);
+          formattedString += ' $formattedTime';
+        }
+      }
+      return formattedString;
     } catch (e) {
       return '';
     }
@@ -54,68 +66,61 @@ class TodoItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final priorityColor = _getPriorityColor(todo.priority);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: const Color(0xFFE0E0E0)),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: () {
+        // TODO: Implement todo item click action
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFF0F0F0)),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
         children: [
-          // Checkbox
-          Padding(
-            padding: const EdgeInsets.only(top: 2.0, right: 8.0),
-            child: Icon(
-              todo.isCompleted ? Icons.check_box : Icons.check_box_outline_blank,
-              color: todo.isCompleted ? const Color(0xFF3D4CD6) : priorityColor,
-              size: 20,
-            ),
-          ),
-          // Title and Description
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(todo.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 4,
-                  children: [
-                    _buildInfoChip(Icons.chat_bubble_outline, '3'),
-                    if (todo.dueDate != null)
-                      _buildInfoChip(Icons.calendar_today_outlined, 'Due: ${_formatDueDate(todo.dueDate)}'),
-                    if (todo.labelName != null)
-                      _buildInfoChip(Icons.label_outline, todo.labelName!),
-                  ],
-                )
+                // Checkbox
+                Icon(
+                  todo.isCompleted ? Icons.check_box : Icons.check_box_outline_blank,
+                  color: todo.isCompleted ? const Color(0xFF3D4CD6) : priorityColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                // Title
+                Expanded(
+                  child: Text(todo.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF383838))),
+                ),
               ],
             ),
-          ),
-          // Priority Flag
-          Padding(
-            padding: const EdgeInsets.only(left: 8.0),
-            child: SvgPicture.asset(
-              'assets/icons/priority.svg',
-              width: 16,
-              height: 16,
-              colorFilter: ColorFilter.mode(priorityColor, BlendMode.srcIn),
-            ),
-          ),
+            // Meta Info
+            Padding(
+              padding: const EdgeInsets.only(left: 28.0, top: 12.0),
+              child: Row(
+                children: [
+                  if (todo.dueDate != null)
+                    _buildInfoChip(Icons.calendar_today_outlined, _formatDueDate(todo.dueDate)),
+                  const SizedBox(width: 12),
+                  if (todo.labelName != null)
+                    _buildInfoChip(Icons.label_outline, todo.labelName!),
+                ],
+              ),
+            )
         ],
+      ),
       ),
     );
   }
 
   Widget _buildInfoChip(IconData icon, String text, {Color? color}) {
     final chipColor = color ?? const Color(0xFF707070);
-    return Row(
+    return Row( // Changed from Container to Row for simpler structure
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 12, color: chipColor),
+        Icon(icon, size: 14, color: chipColor),
         const SizedBox(width: 4),
         Text(text, style: TextStyle(fontSize: 12, color: chipColor)),
       ],

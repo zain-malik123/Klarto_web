@@ -83,7 +83,7 @@ class Sidebar extends StatelessWidget {
                   const SizedBox(height: 3),
                   _buildNavItem('dock', 'assets/icons/dock.svg', 'Dock'),
                   const SizedBox(height: 3),
-                  _buildNavItem('today', 'assets/icons/today.svg', 'Today'),
+                  _buildNavItem('today', 'assets/icons/today.svg', 'Today', onPressed: () => onPageSelected('today')),
                   const SizedBox(height: 3),
                   _buildNavItem('overdue', 'assets/icons/overdue.svg', 'Overdue', badge: '2'),
                   const SizedBox(height: 3),
@@ -152,10 +152,10 @@ class Sidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(String pageKey, String iconPath, String label, {String? badge, bool isIndented = false, bool isSubItem = false}) {
+  Widget _buildNavItem(String pageKey, String iconPath, String label, {String? badge, bool isIndented = false, bool isSubItem = false, VoidCallback? onPressed}) {
     final bool isActive = currentPage == pageKey;
     return TextButton.icon(
-      onPressed: () => onPageSelected(pageKey),
+      onPressed: onPressed ?? () => onPageSelected(pageKey),
       icon: SvgPicture.asset(iconPath, colorFilter: ColorFilter.mode(isActive ? const Color(0xFF383838) : const Color(0xFF707070), BlendMode.srcIn)),
       label: Row(
         children: [

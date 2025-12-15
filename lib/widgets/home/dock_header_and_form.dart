@@ -69,7 +69,7 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
       description: _descriptionController.text.trim(),
       projectName: _selectedLocation,
       dueDate: DateFormat('yyyy-MM-dd').format(_dateTimeSelection!.date!),
-      dueTime: _dateTimeSelection!.time!.format(context),
+      dueTime: '${_dateTimeSelection!.time!.hour.toString().padLeft(2, '0')}:${_dateTimeSelection!.time!.minute.toString().padLeft(2, '0')}',
       repeatValue: _dateTimeSelection!.repeatValue,
       priority: _selectedPriority!,
       labelId: _selectedLabel!.id,
