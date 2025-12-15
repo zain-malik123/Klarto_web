@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:klarto/apis/labels_api_service.dart';
 
 class AddLabelDialog extends StatefulWidget {
   const AddLabelDialog({super.key});
@@ -9,8 +10,13 @@ class AddLabelDialog extends StatefulWidget {
 }
 
 class _AddLabelDialogState extends State<AddLabelDialog> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _labelsApiService = LabelsApiService();
+
   Color _selectedColor = const Color(0xFFFF6B6B);
   bool _isFavorite = false;
+  bool _isLoading = false;
 
   final List<Color> _colors = [
     const Color(0xFFFF6B6B),
@@ -22,6 +28,12 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
     const Color(0xFFF7B500),
     const Color(0xFF6C757D),
   ];
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,16 +71,19 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
             Flexible(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildTextFieldSection(label: 'Label Name', hint: 'Name your label'),
-                    const SizedBox(height: 24),
-                    _buildColorPicker(),
-                    const SizedBox(height: 24),
-                    _buildFavoriteCheckbox(),
-                  ],
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildTextFieldSection(label: 'Label Name', hint: 'Name your label', controller: _nameController, isRequired: true),
+                      const SizedBox(height: 24),
+                      _buildColorPicker(),
+                      const SizedBox(height: 24),
+                      _buildFavoriteCheckbox(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -91,19 +106,18 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
                     child: const Text('Cancel', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                   ),
                   const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: () {
-                      // TODO: Handle Add Label logic
-                      Navigator.of(context).pop();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3D4CD6),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    ),
-                    child: const Text('Add Label', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                  ),
+                  _isLoading
+                      ? const CircularProgressIndicator()
+                      : ElevatedButton(
+                          onPressed: _handleAddLabel,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3D4CD6),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                          ),
+                          child: const Text('Add Label', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                        ),
                 ],
               ),
             ),
@@ -113,13 +127,56 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
     );
   }
 
-  Widget _buildTextFieldSection({required String label, required String hint}) {
+  Future<void> _handleAddLabel() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await _labelsApiService.createLabel(
+        name: _nameController.text,
+        color: '#${_selectedColor.value.toRadixString(16).substring(2)}',
+        isFavorite: _isFavorite,
+      );
+
+      if (!mounted) return;
+
+      if (result['success']) {
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${result['message']}', style: const TextStyle(color: Colors.white)),
+            backgroundColor: const Color(0xFF3D4CD6),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Failed to connect to the server.', style: TextStyle(color: Colors.white)),
+            backgroundColor: Color(0xFF3D4CD6)),
+      );
+    }
+
+    setState(() => _isLoading = false);
+  }
+
+  Widget _buildTextFieldSection({required String label, required String hint, required TextEditingController controller, bool isRequired = false}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF383838))),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
+          controller: controller,
+          validator: isRequired ? (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'This field is required.';
+            }
+            return null;
+          } : null,
           decoration: InputDecoration(
             hintText: hint,
             filled: true,

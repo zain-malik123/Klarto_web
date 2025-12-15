@@ -87,6 +87,7 @@ class _AddFilterDialogState extends State<AddFilterDialog> {
                         description: 'Describe the filter you want to create',
                         hint: 'Describe your filter',
                         controller: _descriptionController,
+                        isRequired: true,
                       ),
                       const SizedBox(height: 24),
                       _buildTextFieldSection(label: 'Filter Name', hint: 'Name your filter', controller: _nameController, isRequired: true),
