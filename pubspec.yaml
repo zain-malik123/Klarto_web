@@ -16,6 +16,7 @@ dependencies:
   flutter_svg: ^2.0.7
   http: ^1.1.0
   shared_preferences: ^2.2.2
+  intl: ^0.18.1
 
 
 dev_dependencies:
@@ -38,3 +39,7 @@ flutter:
     - assets/icons/trash.svg
     - assets/icons/check.svg
     - assets/icons/close.svg
+    - assets/icons/arrow-left.svg
+    - assets/icons/arrow-right.svg
+    - assets/icons/calendar-2.svg
+    - assets/icons/refresh.svg

@@ -43,4 +43,48 @@ class FiltersApiService {
     final responseBody = json.decode(response.body);
     return {'success': response.statusCode == 201, 'data': responseBody, 'message': responseBody['message']};
   }
+
+  Future<Map<String, dynamic>> getFilters() async {
+    final url = Uri.parse('$_baseUrl/filters');
+    
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    if (token == null) {
+      return {'success': false, 'message': 'Not authenticated. Please log in again.'};
+    }
+
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final responseBody = json.decode(response.body);
+    return {'success': response.statusCode == 200, 'data': responseBody, 'message': responseBody is Map ? responseBody['message'] : 'Failed to parse response.'};
+  }
+
+  Future<Map<String, dynamic>> deleteFilter(String id) async {
+    final url = Uri.parse('$_baseUrl/filters/$id');
+    
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    if (token == null) {
+      return {'success': false, 'message': 'Not authenticated. Please log in again.'};
+    }
+
+    final response = await http.delete(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    final responseBody = json.decode(response.body);
+    return {'success': response.statusCode == 200, 'message': responseBody['message']};
+  }
 }
