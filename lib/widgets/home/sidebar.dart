@@ -4,9 +4,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 class Sidebar extends StatelessWidget {
   final String currentPage;
   final Function(String) onPageSelected;
+  final int overdueCount;
 
   const Sidebar({
-    super.key, required this.currentPage, required this.onPageSelected,
+    super.key, required this.currentPage, required this.onPageSelected, required this.overdueCount,
   });
 
   @override
@@ -85,7 +86,7 @@ class Sidebar extends StatelessWidget {
                   const SizedBox(height: 3),
                   _buildNavItem('today', 'assets/icons/today.svg', 'Today', onPressed: () => onPageSelected('today')),
                   const SizedBox(height: 3),
-                  _buildNavItem('overdue', 'assets/icons/overdue.svg', 'Overdue', badge: '2'),
+                  if (overdueCount > 0) _buildNavItem('overdue', 'assets/icons/overdue.svg', 'Overdue', badge: overdueCount.toString()),
                   const SizedBox(height: 3),
                   _buildNavItem('filters_and_labels', 'assets/icons/filters.svg', 'Filters & Labels'),
                   const SizedBox(height: 3),

@@ -23,7 +23,9 @@ class TodayScreenState extends State<TodayScreen> {
   void initState() {
     super.initState();
     _todosFuture = _fetchTodayTodos();
-    widget.onNeedsRefresh(); // Initial call to sync
+    // This was causing a "setState during build" error.
+    // Deferring it until after the first frame prevents the error.
+    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onNeedsRefresh());
   }
 
   void refresh() {

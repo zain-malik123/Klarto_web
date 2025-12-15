@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:klarto/screens/filters_and_labels_screen.dart';
 import 'package:klarto/screens/today_screen.dart';
+import 'package:klarto/screens/overdue_screen.dart';
 import 'package:klarto/widgets/home/toolbar.dart';
 import 'package:klarto/widgets/home/sidebar.dart';
 import 'package:klarto/widgets/home/dock_header_and_form.dart';
@@ -19,6 +20,7 @@ class _MainAppShellState extends State<MainAppShell> {
   String _selectedPage = 'dock';
   late Future<List<Todo>> _todosFuture;
   final GlobalKey<TodayScreenState> _todayScreenKey = GlobalKey<TodayScreenState>();
+  int _overdueCount = 0;
   final TodosApiService _todosApiService = TodosApiService();
 
   @override
@@ -39,9 +41,29 @@ class _MainAppShellState extends State<MainAppShell> {
   Future<List<Todo>> _fetchTodos() async {
     final result = await _todosApiService.getTodos();
     if (result['success'] && result['data'] is List) {
-      return (result['data'] as List).map((json) => Todo.fromJson(json)).toList();
+      final todos = (result['data'] as List).map((json) => Todo.fromJson(json)).toList();
+      _updateOverdueCount(todos);
+      return todos;
     }
+    _updateOverdueCount([]);
     return [];
+  }
+
+  void _updateOverdueCount(List<Todo> todos) {
+    final today = DateTime.now();
+    final todayMidnight = DateTime(today.year, today.month, today.day);
+    final count = todos.where((todo) {
+      if (todo.dueDate == null) return false;
+      try {
+        final dueDate = DateTime.parse(todo.dueDate!);
+        return !todo.isCompleted && dueDate.isBefore(todayMidnight);
+      } catch (e) {
+        return false;
+      }
+    }).length;
+    if (mounted && count != _overdueCount) {
+      setState(() => _overdueCount = count);
+    }
   }
 
   void _onPageSelected(String pageKey) {
@@ -56,6 +78,8 @@ class _MainAppShellState extends State<MainAppShell> {
         return const FiltersAndLabelsScreen();
       case 'today':
         return TodayScreen(key: _todayScreenKey, onNeedsRefresh: _refreshTodos);
+      case 'overdue':
+        return const OverdueScreen();
       case 'dock':
       default:
         // The main content for the home screen.
@@ -92,7 +116,7 @@ class _MainAppShellState extends State<MainAppShell> {
       backgroundColor: const Color(0xFFF9F9F9),
       body: Row(
         children: [
-          Sidebar(currentPage: _selectedPage, onPageSelected: _onPageSelected),
+          Sidebar(currentPage: _selectedPage, onPageSelected: _onPageSelected, overdueCount: _overdueCount),
           Expanded(child: _buildCurrentPage()),
         ],
       ),
