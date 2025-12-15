@@ -1,5 +1,5 @@
 class Activity {
-  final String id;
+  final int id;
   final String activityName;
   final String? description;
   final DateTime createdAt;
@@ -15,7 +15,7 @@ class Activity {
 
   factory Activity.fromJson(Map<String, dynamic> json) {
     return Activity(
-      id: json['id'] as String,
+      id: json['id'] as int,
       activityName: json['activity_name'] as String,
       description: json['description'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),

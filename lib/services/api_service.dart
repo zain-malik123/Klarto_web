@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:klarto/config.dart';
 
 class ApiService {
   // In a real app, this would come from a config file.
-  static const String _baseUrl = 'http://localhost:8080';
+  static const String _baseUrl = AppConfig.baseUrl;
 
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();

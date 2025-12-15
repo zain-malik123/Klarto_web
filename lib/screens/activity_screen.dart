@@ -35,7 +35,19 @@ class _ActivityScreenState extends State<ActivityScreen> {
   Map<String, List<Activity>> _groupActivitiesByDay(List<Activity> activities) {
     final Map<String, List<Activity>> grouped = {};
     for (var activity in activities) {
-      final dayKey = DateFormat('E, d MMM').format(activity.createdAt);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final yesterday = today.subtract(const Duration(days: 1));
+      final activityDate = DateTime(activity.createdAt.year, activity.createdAt.month, activity.createdAt.day);
+
+      String dayKey;
+      if (activityDate == today) {
+        dayKey = 'Today - ${DateFormat('d MMM').format(activity.createdAt)}';
+      } else if (activityDate == yesterday) {
+        dayKey = 'Yesterday - ${DateFormat('d MMM').format(activity.createdAt)}';
+      } else {
+        dayKey = DateFormat('E, d MMM').format(activity.createdAt);
+      }
       if (grouped[dayKey] == null) {
         grouped[dayKey] = [];
       }
@@ -109,15 +121,39 @@ class _ActivityScreenState extends State<ActivityScreen> {
     );
   }
 
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else {
+      return DateFormat('HH:mm').format(timestamp);
+    }
+  }
+
   Widget _buildActivityCard(Activity activity) {
-    // This part is a direct translation of your activity.html design
+    // Parse the description to separate the main action from the detail.
+    // e.g., "User added a new todo: \"My new todo\""
+    String mainAction = activity.description ?? activity.activityName;
+    String? detail;
+    if (activity.description?.contains(':') ?? false) {
+      final parts = activity.description!.split(':');
+      mainAction = parts.first.trim();
+      if (parts.length > 1) {
+        detail = parts.sublist(1).join(':').trim().replaceAll('"', '');
+      }
+    }
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24.0),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           // Assuming a static avatar for now
           Image.asset('assets/images/avatar.png', width: 36, height: 36),
@@ -125,21 +161,46 @@ class _ActivityScreenState extends State<ActivityScreen> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 RichText(
                   text: TextSpan(
                     style: const TextStyle(fontSize: 13, color: Color(0xFF707070), fontFamily: 'Inter'),
                     children: [
-                      TextSpan(text: 'You ', style: const TextStyle(color: Color(0xFF383838))),
-                      TextSpan(text: activity.description),
+                      TextSpan(text: '${activity.userName} ', style: const TextStyle(color: Color(0xFF383838), fontWeight: FontWeight.w500)),
+                      TextSpan(text: mainAction.toLowerCase()),
+                      if (detail != null)
+                        TextSpan(text: ' - $detail', style: const TextStyle(color: Color(0xFF383838), fontWeight: FontWeight.w500)),
                     ],
                   ),
                 ),
+                // This part is static from the design as the data is not in the DB
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFED7FDE).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircleAvatar(radius: 4, backgroundColor: Color(0xFFED7FDE)),
+                          SizedBox(width: 4),
+                          Text("Ashar's Team", style: TextStyle(fontSize: 11, color: Color(0xFF707070))),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
               ],
             ),
           ),
+          const SizedBox(width: 12),
           Text(
-            DateFormat('HH:mm').format(activity.createdAt),
+            _formatTimestamp(activity.createdAt),
             style: const TextStyle(fontSize: 11, color: Color(0xFF9F9F9F)),
           ),
         ],
