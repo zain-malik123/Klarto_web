@@ -95,7 +95,8 @@ class _LoginScreenState extends State<LoginScreen> {
           await prefs.remove('remembered_email');
         }
 
-        // TODO: Securely store the token (result['token'])
+        // Store the JWT for subsequent API calls
+        await prefs.setString('jwt_token', result['token']);
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const MainAppShell()),
         );

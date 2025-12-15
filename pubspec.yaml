@@ -36,3 +36,5 @@ flutter:
     - assets/icons/link.svg
     - assets/icons/three-dots.svg
     - assets/icons/trash.svg
+    - assets/icons/check.svg
+    - assets/icons/close.svg

@@ -1,0 +1,39 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+
+# IntelliJ/Android Studio
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+pubspec.lock
+
+# Generated files
+lib/generated_plugin_registrant.dart
+
+# Platform-specific files
+/android/local.properties
+/ios/Pods/
+/ios/Flutter/App.framework
+/ios/Flutter/engine.framework
+/ios/Flutter/flutter_assets/
+/ios/Flutter/.last_build_id
+/macos/Flutter/ephemeral
+/windows/flutter/ephemeral
+/linux/flutter/ephemeral

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:klarto/widgets/home/toolbar.dart';
+import 'package:klarto/widgets/add_filter_dialog.dart';
+import 'package:klarto/widgets/add_label_dialog.dart';
 
 class FiltersAndLabelsScreen extends StatelessWidget {
   const FiltersAndLabelsScreen({super.key});
@@ -25,7 +27,12 @@ class FiltersAndLabelsScreen extends StatelessWidget {
                   const SizedBox(height: 32),
                   _buildSection(
                     title: 'Filters',
-                    onAdd: () {},
+                    onAdd: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const AddFilterDialog(),
+                      );
+                    },
                     items: [
                       _buildListItem(iconPath: 'assets/icons/filter.svg', title: "Usman's Todos", count: 2),
                       _buildListItem(iconPath: 'assets/icons/filter.svg', title: "Work Todos", count: 2),
@@ -34,7 +41,12 @@ class FiltersAndLabelsScreen extends StatelessWidget {
                   const SizedBox(height: 32),
                   _buildSection(
                     title: 'Labels',
-                    onAdd: () {},
+                    onAdd: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => const AddLabelDialog(),
+                      );
+                    },
                     items: [
                       _buildListItem(iconPath: 'assets/icons/tag.svg', title: "Work Todos", count: 2),
                       _buildListItem(iconPath: 'assets/icons/tag.svg', title: "Personal", count: 2),
