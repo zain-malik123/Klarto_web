@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:klarto/screens/filters_and_labels_screen.dart';
 import 'package:klarto/screens/today_screen.dart';
 import 'package:klarto/screens/overdue_screen.dart';
+import 'package:klarto/screens/activity_screen.dart';
 import 'package:klarto/widgets/home/toolbar.dart';
 import 'package:klarto/widgets/home/sidebar.dart';
 import 'package:klarto/widgets/home/dock_header_and_form.dart';
@@ -80,6 +81,8 @@ class _MainAppShellState extends State<MainAppShell> {
         return TodayScreen(key: _todayScreenKey, onNeedsRefresh: _refreshTodos);
       case 'overdue':
         return const OverdueScreen();
+      case 'activity':
+        return const ActivityScreen();
       case 'dock':
       default:
         // The main content for the home screen.
