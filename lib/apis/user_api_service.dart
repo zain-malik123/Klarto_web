@@ -102,6 +102,29 @@ class UserApiService {
     }
   }
 
+  Future<Map<String, dynamic>> getProfile() async {
+    final url = Uri.parse('$_baseUrl/profile');
+    final headers = await _getHeaders();
+    headers['Content-Type'] = 'application/json';
+
+    try {
+      final response = await http.get(url, headers: headers);
+      final body = json.decode(response.body);
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'name': body['name'],
+          'email': body['email'],
+          'profile_picture_base64': body['profile_picture_base64'],
+        };
+      } else {
+        return {'success': false, 'message': body['message'] ?? 'Failed to fetch profile'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error occurred.'};
+    }
+  }
+
   Future<Map<String, dynamic>> setPasswordForInvite({required String token, required String password}) async {
     final url = Uri.parse('$_baseUrl/team/invite/set-password');
     final headers = {'Content-Type': 'application/json'};

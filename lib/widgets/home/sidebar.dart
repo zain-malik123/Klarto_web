@@ -1,7 +1,11 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:klarto/apis/user_api_service.dart';
 
-class Sidebar extends StatelessWidget {
+class Sidebar extends StatefulWidget {
   final String currentPage;
   final Function(String) onPageSelected;
   final int overdueCount;
@@ -9,6 +13,45 @@ class Sidebar extends StatelessWidget {
   const Sidebar({
     super.key, required this.currentPage, required this.onPageSelected, required this.overdueCount,
   });
+
+  @override
+  State<Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends State<Sidebar> {
+  final UserApiService _userApi = UserApiService();
+  String? _name;
+  String? _profileBase64;
+  Uint8List? _avatarBytes;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      final res = await _userApi.getProfile();
+      if (res['success'] == true) {
+        final name = res['name'] as String?;
+        final b64 = res['profile_picture_base64'] as String?;
+        Uint8List? bytes;
+        if (b64 != null && b64.isNotEmpty) {
+          // data:<mime>;base64,<data>
+          final parts = b64.split(',');
+          final encoded = parts.length > 1 ? parts[1] : parts[0];
+          try { bytes = base64Decode(encoded); } catch (_) { bytes = null; }
+        }
+        if (mounted) setState(() { _name = name; _profileBase64 = b64; _avatarBytes = bytes; _loading = false; });
+      } else {
+        if (mounted) setState(() { _loading = false; });
+      }
+    } catch (_) {
+      if (mounted) setState(() { _loading = false; });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,9 +91,11 @@ class Sidebar extends StatelessWidget {
                     padding: const EdgeInsets.all(8),
                     child: Row(
                       children: [
-                        const Icon(Icons.account_circle_outlined, size: 24, color: Color(0xFF707070)),
+                        _avatarBytes != null
+                          ? CircleAvatar(radius: 12, backgroundImage: MemoryImage(_avatarBytes!))
+                          : const Icon(Icons.account_circle_outlined, size: 24, color: Color(0xFF707070)),
                         const SizedBox(width: 8),
-                        const Text('James', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                        Text(_name ?? 'User', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                         const Spacer(),
                         Stack(
                           children: [

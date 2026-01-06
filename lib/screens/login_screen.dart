@@ -100,10 +100,20 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('jwt_token', result['token']);
         
         if (!mounted) return;
-        // For testing: always show onboarding after login.
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-        );
+        // Show onboarding only if not completed; invited users skip the invite step.
+        final bool onboarded = prefs.getBool('onboarding_completed') ?? false;
+        final bool invited = result['invited'] == true;
+        if (!onboarded) {
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => OnboardingScreen(showInviteStep: !invited)),
+          );
+        } else {
+          if (!mounted) return;
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const MainAppShell()),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${result['message']}'), backgroundColor: Colors.red),

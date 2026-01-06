@@ -62,6 +62,7 @@ class AuthApiService {
       return {
         'success': true,
         'token': responseBody['token'],
+        'invited': responseBody['invited'] == true,
       };
     } else {
       // Handle other status codes (400, 401, 403, 500)

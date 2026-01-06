@@ -7,7 +7,8 @@ import 'package:klarto/widgets/custom_text_field.dart';
 import 'package:klarto/apis/user_api_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  final bool showInviteStep;
+  const OnboardingScreen({super.key, this.showInviteStep = true});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -21,12 +22,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final ImagePicker _picker = ImagePicker();
 
   int _currentStep = 0;
+  late final int _totalSteps;
   XFile? _selectedImage;
   Uint8List? _selectedImageBytes;
   bool _isLoading = false;
 
   void _nextPage() {
-    if (_currentStep < 2) {
+    if (_currentStep < (_totalSteps - 1)) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
@@ -192,7 +194,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       // Progress Steps
                       Expanded(
                         child: Row(
-                          children: List.generate(3, (index) {
+                          children: List.generate(_totalSteps, (index) {
                             return Expanded(
                               child: Container(
                                 height: 4,
@@ -220,11 +222,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       });
                     },
                     physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _buildStep1(),
-                      _buildStep2(),
-                      _buildStep3(),
-                    ],
+                    children: widget.showInviteStep
+                        ? [_buildStep1(), _buildStep2(), _buildStep3()]
+                        : [_buildStep1(), _buildStep2()],
                   ),
                 ),
               ],
@@ -238,6 +238,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
+    _totalSteps = widget.showInviteStep ? 3 : 2;
     _inviteController.addListener(() {
       if (mounted) setState(() {});
     });

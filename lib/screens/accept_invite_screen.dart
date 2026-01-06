@@ -5,6 +5,7 @@ import 'package:klarto/screens/main_app_shell.dart';
 import 'package:klarto/screens/onboarding/onboarding_screen.dart';
 import 'package:klarto/screens/login_screen.dart';
 import 'package:klarto/widgets/custom_text_field.dart';
+import 'package:klarto/widgets/auth_branding_panel.dart';
 
 class AcceptInviteScreen extends StatefulWidget {
   final String token;
@@ -43,14 +44,14 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
 
     if (!mounted) return;
 
-    if (result['success'] == true && result['token'] != null) {
+      if (result['success'] == true && result['token'] != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('jwt_token', result['token']);
 
       final bool onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => onboardingCompleted ? const MainAppShell() : const OnboardingScreen()),
+        MaterialPageRoute(builder: (context) => onboardingCompleted ? const MainAppShell() : const OnboardingScreen(showInviteStep: false)),
         (route) => false,
       );
     } else {
@@ -170,11 +171,9 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
           if (!isWideScreen) return rightSide;
 
           return Row(
-            children: const [
-              // For wide screens we could show branding; keep it simple.
-              // TODO: add branding panel if desired
-              Expanded(child: SizedBox()),
-              Expanded(child: SizedBox()),
+            children: [
+              const AuthBrandingPanel(),
+              Expanded(child: rightSide),
             ],
           );
         },
