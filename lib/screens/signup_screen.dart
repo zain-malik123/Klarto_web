@@ -202,8 +202,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             CustomTextField(
                               controller: _nameController,
                               label: 'Full name',
-                              hint: 'Enter your full name',
-                              icon: Icons.person_outline,
+                              hintText: 'Enter your full name',
+                              prefixIcon: Icons.person_outline,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Please enter your full name.';
@@ -218,8 +218,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             CustomTextField(
                               controller: _emailController,
                               label: 'Email',
-                              hint: 'Enter your email',
-                              icon: Icons.mail_outline,
+                              hintText: 'Enter your email',
+                              prefixIcon: Icons.mail_outline,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Please enter your email address.';
@@ -237,8 +237,8 @@ class _SignupScreenState extends State<SignupScreen> {
                             CustomTextField(
                               controller: _passwordController,
                               label: 'Password',
-                              hint: 'Enter your password',
-                              icon: Icons.lock_outline,
+                              hintText: 'Enter your password',
+                              prefixIcon: Icons.lock_outline,
                               isPassword: true,
                               isPasswordVisible: _isPasswordVisible,
                               onToggleVisibility: () {

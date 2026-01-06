@@ -10,11 +10,11 @@ class VerifyEmailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          const AuthBrandingPanel(),
-          Expanded(
-            child: Container(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWideScreen = constraints.maxWidth > 900;
+
+          final rightSide = Container(
               color: Colors.white,
               child: Center(
                 child: ConstrainedBox(
@@ -96,9 +96,17 @@ class VerifyEmailScreen extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          ),
-        ],
+            );
+
+          if (!isWideScreen) return rightSide;
+
+          return Row(
+            children: [
+              const AuthBrandingPanel(),
+              Expanded(child: rightSide),
+            ],
+          );
+        },
       ),
     );
   }

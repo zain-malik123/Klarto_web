@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 class CustomTextField extends StatelessWidget {
   final String label;
-  final String hint;
-  final IconData icon;
+  final String hintText;
+  final IconData? prefixIcon;
   final bool isPassword;
   final bool isPasswordVisible;
   final VoidCallback? onToggleVisibility;
@@ -13,8 +13,8 @@ class CustomTextField extends StatelessWidget {
   const CustomTextField({
     super.key,
     required this.label,
-    required this.hint,
-    required this.icon,
+    required this.hintText,
+    this.prefixIcon,
     this.isPassword = false,
     this.isPasswordVisible = false,
     this.onToggleVisibility,
@@ -35,9 +35,9 @@ class CustomTextField extends StatelessWidget {
           validator: validator,
           obscureText: isPassword && !isPasswordVisible,
           decoration: InputDecoration(
-            hintText: hint,
+            hintText: hintText,
             hintStyle: const TextStyle(color: Color(0xFF9F9F9F)),
-            prefixIcon: Icon(icon, color: const Color(0xFF707070), size: 18),
+            prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: const Color(0xFF707070), size: 18) : null,
             suffixIcon: isPassword
                 ? IconButton(
                     icon: Icon(

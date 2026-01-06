@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:klarto/apis/auth_api_service.dart';
 import 'package:klarto/screens/main_app_shell.dart';
 import 'package:klarto/screens/signup_screen.dart';
+import 'package:klarto/screens/onboarding/onboarding_screen.dart';
 import 'package:klarto/screens/reset_password_screen.dart';
 import 'package:klarto/widgets/feature_tile.dart';
 import 'package:klarto/widgets/custom_text_field.dart';
@@ -97,9 +98,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // Store the JWT for subsequent API calls
         await prefs.setString('jwt_token', result['token']);
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const MainAppShell()),
-        );
+        
+        final bool onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+
+        if (!mounted) return;
+
+        if (onboardingCompleted) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const MainAppShell()),
+          );
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${result['message']}'), backgroundColor: Colors.red),
@@ -241,8 +253,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           CustomTextField(
                             controller: _emailController,
                             label: 'Email',
-                            hint: 'Enter your email',
-                            icon: Icons.mail_outline,
+                            hintText: 'Enter your email',
+                            prefixIcon: Icons.mail_outline,
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'Please enter your email.';
@@ -254,8 +266,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           CustomTextField(
                             controller: _passwordController,
                             label: 'Password',
-                            hint: 'Enter your password',
-                            icon: Icons.lock_outline,
+                            hintText: 'Enter your password',
+                            prefixIcon: Icons.lock_outline,
                             isPassword: true,
                             isPasswordVisible: _isPasswordVisible,
                             onToggleVisibility: () {

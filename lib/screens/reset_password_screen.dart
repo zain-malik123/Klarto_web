@@ -44,11 +44,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Row(
-        children: [
-          // Left Side
-          Expanded(
-            child: Container(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isWideScreen = constraints.maxWidth > 900;
+
+          final leftSide = Container(
               decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -113,11 +113,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ),
                 ),
               ),
-            ),
-          ),
-          // Right Side
-          Expanded(
-            child: Container(
+            );
+
+          final rightSide = Container(
               color: Colors.white,
               child: Stack(
                 children: [
@@ -200,8 +198,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                               CustomTextField(
                                 controller: _emailController,
                                 label: 'Email',
-                                hint: 'Enter your email',
-                                icon: Icons.mail_outline,
+                                hintText: 'Enter your email',
+                                prefixIcon: Icons.mail_outline,
                                 validator: (value) {
                                   if (value == null || value.trim().isEmpty) {
                                     return 'Please enter your email address.';
@@ -273,9 +271,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ),
                 ],
               ),
-            ),
-          ),
-        ],
+            );
+
+          if (!isWideScreen) return rightSide;
+
+          return Row(
+            children: [
+              Expanded(child: leftSide),
+              Expanded(child: rightSide),
+            ],
+          );
+        },
       ),
     );
   }

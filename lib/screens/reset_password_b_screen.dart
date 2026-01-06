@@ -14,13 +14,10 @@ class ResetPasswordBScreen extends StatelessWidget {
       body: LayoutBuilder(
         builder: (context, constraints) {
           // Calculate positions based on the right panel's width
-          final rightPanelWidth = constraints.maxWidth / 2;
+          final isWideScreen = constraints.maxWidth > 900;
+          final rightPanelWidth = isWideScreen ? constraints.maxWidth / 2 : constraints.maxWidth;
 
-          return Row(
-            children: [
-              // Left Side
-              Expanded(
-                child: Container(
+          final leftSide = Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -86,11 +83,9 @@ class ResetPasswordBScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                ),
-              ),
-              // Right Side
-              Expanded(
-                child: Container(
+                );
+
+          final rightSide = Container(
                   color: Colors.white,
                   child: Stack(
                     children: [
@@ -196,8 +191,14 @@ class ResetPasswordBScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
-              ),
+                );
+
+          if (!isWideScreen) return rightSide;
+
+          return Row(
+            children: [
+              Expanded(child: leftSide),
+              Expanded(child: rightSide),
             ],
           );
         },

@@ -1,0 +1,71 @@
+revert to last commit
+======================
+git reset --hard HEAD
+git clean -fd
+
+
+
+for server app
+============== 
+cd Klarto_server/Klarto_server
+set .env
+ dart pub get
+ dart run bin/server.dart
+ nohup dart run bin/server.dart > server.log 2>&1 &  //run perminent
+
+git pull && git fetch && git pull && dart pub get && dart run bin/server.dart
+
+
+check running service
+====================
+ pgrep -af dart
+sudo kill -9 12345
+
+
+
+Sendgrid
+52TFY2HNCBKRDQ22BFJQLEX8
+
+for web app
+===========
+ flutter create . --platforms web
+flutter build web
+sudo rm -rf /var/www/html/*
+sudo cp -r build/web/* /var/www/html/
+sudo chown -R www-data:www-data /var/www/html
+
+
+git add . && git commit -m "onboarding" && git push
+
+local db dump
+=============
+"/c/Program Files/PostgreSQL/13/bin/pg_dump.exe" -U klarto_api_user -h localhost -p 5432 -d klarto_db -s -f "/c/Users/YourUser/Desktop/db_schema.sql"
+
+remote use dump
+==============
+psql -U klarto_api_user -h localhost -p 5432 -d klarto_db -f db_schema.sql
+
+curl -X POST "https://smtp.maileroo.com/api/v2/emails" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer b8709d238fe70a1d19db569d3c14d0e92b49b2d0d95b6f3e9b2d66911139ed38" \
+  -d '{
+    "from": {
+      "address": "support@92fdd76d4f699117.maileroo.org",
+      "display_name": "Customer Care"
+    },
+    "to": [
+      {
+        "address": "rehannasim0@gmail.com",
+        "display_name": "Syed Rehan"
+      }
+    ],
+    "subject": "Test Email from Maileroo!",
+    "plain": "This is a plain‑text test email sent via Maileroo API."
+  }'
+
+
+remote databse
+================
+psql -U klarto_api_user -d klarto_db
+
+TRUNCATE TABLE users RESTART IDENTITY CASCADE;
