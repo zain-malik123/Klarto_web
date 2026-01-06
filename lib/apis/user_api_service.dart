@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:klarto/config.dart';
@@ -39,14 +39,17 @@ class UserApiService {
     }
   }
 
-  Future<Map<String, dynamic>> uploadAvatar(String filePath) async {
+  Future<Map<String, dynamic>> uploadAvatar({Uint8List? bytes, String? fileName}) async {
     final url = Uri.parse('$_baseUrl/profile/avatar');
     final headers = await _getHeaders();
     headers['Content-Type'] = 'application/json';
 
+    if (bytes == null || bytes.isEmpty) {
+      return {'success': false, 'message': 'No image bytes provided.'};
+    }
+
     try {
-      final bytes = await File(filePath).readAsBytes();
-      final ext = p.extension(filePath).toLowerCase();
+      final ext = (fileName != null) ? p.extension(fileName).toLowerCase() : '.png';
       String subtype = 'png';
       if (ext == '.jpg' || ext == '.jpeg') subtype = 'jpeg';
       else if (ext == '.gif') subtype = 'gif';
@@ -71,6 +74,50 @@ class UserApiService {
         };
       } else {
         return {'success': false, 'message': responseBody['message'] ?? 'Failed to upload avatar'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error occurred.'};
+    }
+  }
+
+  Future<Map<String, dynamic>> inviteTeam(List<String> emails) async {
+    final url = Uri.parse('$_baseUrl/team/invite');
+    final headers = await _getHeaders();
+    headers['Content-Type'] = 'application/json';
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode({'emails': emails}),
+      );
+      final body = json.decode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'results': body['results']};
+      } else {
+        return {'success': false, 'message': body['message'] ?? 'Failed to invite'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Network error occurred.'};
+    }
+  }
+
+  Future<Map<String, dynamic>> setPasswordForInvite({required String token, required String password}) async {
+    final url = Uri.parse('$_baseUrl/team/invite/set-password');
+    final headers = {'Content-Type': 'application/json'};
+
+    try {
+      final response = await http.post(
+        url,
+        headers: headers,
+        body: json.encode({'token': token, 'password': password}),
+      );
+
+      final body = json.decode(response.body);
+      if (response.statusCode == 200) {
+        return {'success': true, 'token': body['token']};
+      } else {
+        return {'success': false, 'message': body['message'] ?? 'Failed to set password for invite'};
       }
     } catch (e) {
       return {'success': false, 'message': 'Network error occurred.'};

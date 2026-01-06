@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:klarto/screens/login_screen.dart';
 import 'package:klarto/screens/reset_password_confirm_screen.dart';
+import 'package:klarto/screens/accept_invite_screen.dart';
 import 'package:klarto/apis/auth_api_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -28,6 +29,11 @@ class _SplashScreenState extends State<SplashScreen> {
       final token = uri.queryParameters['token']!;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => ResetPasswordConfirmScreen(token: token)),
+      );
+    } else if (uri.path.contains('/accept-invite') && uri.queryParameters.containsKey('token')) {
+      final token = uri.queryParameters['token']!;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => AcceptInviteScreen(token: token)),
       );
     } else if (uri.path.contains('/verify-email') && uri.queryParameters.containsKey('token')) {
       final token = uri.queryParameters['token']!;

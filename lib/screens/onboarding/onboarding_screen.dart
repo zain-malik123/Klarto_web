@@ -1,5 +1,5 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:klarto/screens/main_app_shell.dart';
@@ -16,11 +16,13 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _inviteController = TextEditingController();
   final UserApiService _userApiService = UserApiService();
   final ImagePicker _picker = ImagePicker();
 
   int _currentStep = 0;
   XFile? _selectedImage;
+  Uint8List? _selectedImageBytes;
   bool _isLoading = false;
 
   void _nextPage() {
@@ -46,8 +48,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
+      final bytes = await image.readAsBytes();
       setState(() {
         _selectedImage = image;
+        _selectedImageBytes = bytes;
       });
     }
   }
@@ -77,8 +81,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       }
 
       // 2. Upload Avatar if selected
-      if (_selectedImage != null) {
-        final avatarResult = await _userApiService.uploadAvatar(_selectedImage!.path);
+      if (_selectedImageBytes != null) {
+        final avatarResult = await _userApiService.uploadAvatar(bytes: _selectedImageBytes, fileName: _selectedImage?.name);
         if (!avatarResult['success']) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -113,6 +117,53 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(builder: (context) => const MainAppShell()),
     );
+  }
+
+  List<Widget> _buildEmailTagsFromInput() {
+    final text = _inviteController.text;
+    final emails = text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    return emails.take(5).map((e) => _buildEmailTag(e)).toList();
+  }
+
+  bool _isValidEmail(String email) {
+    final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', caseSensitive: false);
+    return regex.hasMatch(email);
+  }
+
+  Future<void> _handleStep3Submit() async {
+    final raw = _inviteController.text;
+    final emails = raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    if (emails.isEmpty) {
+      // No invites, just complete onboarding
+      await _completeOnboarding();
+      return;
+    }
+    if (emails.length > 5) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You can invite up to 5 members.')));
+      return;
+    }
+
+    // Validate emails locally
+    final invalid = emails.where((e) => !_isValidEmail(e)).toList();
+    if (invalid.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invalid email(s): ${invalid.join(', ')}')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    try {
+      final result = await _userApiService.inviteTeam(emails);
+      if (result['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invitations sent.')));
+        await _completeOnboarding();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'] ?? 'Failed to send invites')));
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('An error occurred sending invites.')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -182,6 +233,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _inviteController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _inviteController.dispose();
+    _nameController.dispose();
+    super.dispose();
   }
 
   Widget _buildStep1() {
@@ -278,7 +344,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   image: _selectedImage != null
                       ? DecorationImage(
-                          image: FileImage(File(_selectedImage!.path)),
+                                    image: MemoryImage(_selectedImageBytes!),
                           fit: BoxFit.cover,
                         )
                       : null,
@@ -380,9 +446,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          const CustomTextField(
-            label: 'Enter Member Email',
-            hintText: 'user@email.com',
+          CustomTextField(
+            label: 'Enter Member Emails (max 5, comma separated)',
+            hintText: 'a@b.com, c@d.com',
+            controller: _inviteController,
             prefixIcon: Icons.person_outline,
           ),
           const SizedBox(height: 16),
@@ -391,14 +458,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: [
-                _buildEmailTag('asharayub50@gmail.com'),
-                _buildEmailTag('usman@gmail.com'),
-                _buildEmailTag('mads@gmail.com'),
-                _buildEmailTag('rehan@gmail.com'),
-              ],
+              children: _buildEmailTagsFromInput(),
             ),
           ),
+          
           const SizedBox(height: 24),
           const Text(
             'You can manage your team members any time in settings.',
@@ -413,7 +476,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             width: double.infinity,
             height: 40,
             child: ElevatedButton(
-              onPressed: _completeOnboarding,
+              onPressed: _isLoading ? null : _handleStep3Submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3D4CD6),
                 shape: RoundedRectangleBorder(
@@ -422,7 +485,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 elevation: 0,
               ),
               child: const Text(
-                'Continue',
+                'Finish',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14,
@@ -438,31 +501,46 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Widget _buildEmailTag(String email) {
+    final valid = _isValidEmail(email);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF2F4F7), // Based on gray-200-stroke
+        color: valid ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
         borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: valid ? const Color(0xFF66BB6A) : const Color(0xFFEF5350)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          Icon(
+            valid ? Icons.check_circle_outline : Icons.error_outline,
+            size: 16,
+            color: valid ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+          ),
+          const SizedBox(width: 8),
           Text(
             email,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF707070),
+              color: valid ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
             ),
           ),
           const SizedBox(width: 8),
           GestureDetector(
             onTap: () {
-              // Handle remove
+              // Remove this email from the input
+              final current = _inviteController.text;
+              final parts = current.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+              parts.removeWhere((p) => p == email);
+              _inviteController.text = parts.join(', ');
+              // Move cursor to end
+              _inviteController.selection = TextSelection.fromPosition(TextPosition(offset: _inviteController.text.length));
+              if (mounted) setState(() {});
             },
-            child: const Icon(
+            child: Icon(
               Icons.close,
               size: 14,
-              color: Color(0xFF707070),
+              color: valid ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
             ),
           ),
         ],

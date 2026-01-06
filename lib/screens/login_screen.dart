@@ -99,19 +99,11 @@ class _LoginScreenState extends State<LoginScreen> {
         // Store the JWT for subsequent API calls
         await prefs.setString('jwt_token', result['token']);
         
-        final bool onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
-
         if (!mounted) return;
-
-        if (onboardingCompleted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const MainAppShell()),
-          );
-        } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-          );
-        }
+        // For testing: always show onboarding after login.
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: ${result['message']}'), backgroundColor: Colors.red),
