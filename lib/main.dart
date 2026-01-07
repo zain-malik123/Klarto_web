@@ -14,7 +14,12 @@ class KlartoApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Klarto',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        fontFamily: 'Inter',
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
       home: const SplashScreen(),
     );
   }

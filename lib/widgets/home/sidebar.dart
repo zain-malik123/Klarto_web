@@ -62,7 +62,7 @@ class _SidebarState extends State<Sidebar> {
         children: [
           // Header
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: const BoxDecoration(
               border: Border(bottom: BorderSide(color: Color(0xFFF0F0F0))),
             ),
@@ -72,37 +72,91 @@ class _SidebarState extends State<Sidebar> {
                 Row(
                   children: [
                     Image.asset('assets/images/logo.png', width: 22, height: 22),
-                    const SizedBox(width: 6),
-                    const Text('Klarto', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600, color: Color(0xFF3B4AD6))),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Klarto',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF3D4CD6),
+                      ),
+                    ),
                   ],
                 ),
-                IconButton(onPressed: () {}, icon: SvgPicture.asset('assets/icons/grid.svg')),
+                SvgPicture.asset(
+                  'assets/icons/grid.svg',
+                  width: 20,
+                  height: 20,
+                  colorFilter: const ColorFilter.mode(Color(0xFF707070), BlendMode.srcIn),
+                ),
               ],
             ),
           ),
           // Content
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // User & Notifications
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    width: double.infinity,
+                    height: 40,
+                    padding: const EdgeInsets.only(left: 8),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _avatarBytes != null
-                          ? CircleAvatar(radius: 12, backgroundImage: MemoryImage(_avatarBytes!))
-                          : const Icon(Icons.account_circle_outlined, size: 24, color: Color(0xFF707070)),
-                        const SizedBox(width: 8),
-                        Text(_name ?? 'User', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                        const Spacer(),
-                        Stack(
+                        Row(
                           children: [
-                            IconButton(onPressed: () {}, icon: SvgPicture.asset('assets/icons/bell.svg')),
-                            const Positioned(
-                              top: 8, right: 8,
-                              child: CircleAvatar(radius: 4, backgroundColor: Color(0xFF3D4CD6)),
+                            _avatarBytes != null
+                                ? CircleAvatar(
+                                    radius: 12,
+                                    backgroundImage: MemoryImage(_avatarBytes!),
+                                  )
+                                : SvgPicture.asset('assets/icons/avatar.svg', width: 24, height: 24),
+                            const SizedBox(width: 8),
+                            Text(
+                              _name ?? 'User',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF252525),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            SvgPicture.asset(
+                              'assets/icons/chevron-down.svg',
+                              width: 12,
+                              height: 12,
+                              colorFilter: const ColorFilter.mode(Color(0xFF707070), BlendMode.srcIn),
+                            ),
+                          ],
+                        ),
+                        Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              child: SvgPicture.asset(
+                                'assets/icons/bell.svg',
+                                width: 20,
+                                height: 20,
+                                colorFilter: const ColorFilter.mode(Color(0xFF707070), BlendMode.srcIn),
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF3D4CD6),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 1),
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -113,83 +167,102 @@ class _SidebarState extends State<Sidebar> {
                   // Add Todo Button
                   ElevatedButton.icon(
                     onPressed: () {},
-                    icon: SvgPicture.asset('assets/icons/add.svg'),
+                    icon: SvgPicture.asset(
+                      'assets/icons/add.svg',
+                      width: 18,
+                      height: 18,
+                      colorFilter: const ColorFilter.mode(Color(0xFF3D4CD6), BlendMode.srcIn),
+                    ),
                     label: const Text('Add Todo'),
                     style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
+                      minimumSize: const Size(double.infinity, 40),
                       backgroundColor: const Color(0xFF3D4CD6).withOpacity(0.08),
                       foregroundColor: const Color(0xFF3D4CD6),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       elevation: 0,
+                      textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                      alignment: Alignment.center,
                     ),
                   ),
                   const SizedBox(height: 16),
                   // Nav Items
                   _buildNavItem('search', 'assets/icons/search.svg', 'Search'),
-                  const SizedBox(height: 3),
                   _buildNavItem('dock', 'assets/icons/dock.svg', 'Dock'),
-                  const SizedBox(height: 3),
-                  _buildNavItem('today', 'assets/icons/today.svg', 'Today', onPressed: () => onPageSelected('today')),
-                  const SizedBox(height: 3),
-                  if (overdueCount > 0) _buildNavItem('overdue', 'assets/icons/overdue.svg', 'Overdue', badge: overdueCount.toString()),
-                  const SizedBox(height: 3),
+                  _buildNavItem('today', 'assets/icons/today.svg', 'Today',
+                      onPressed: () => widget.onPageSelected('today')),
+                  if (widget.overdueCount > 0)
+                    _buildNavItem('overdue', 'assets/icons/overdue.svg', 'Overdue',
+                        badge: widget.overdueCount.toString()),
                   _buildNavItem('filters_and_labels', 'assets/icons/filters.svg', 'Filters & Labels'),
-                  const SizedBox(height: 3),
                   _buildNavItem('activity', 'assets/icons/activity.svg', 'Activity'),
                   const SizedBox(height: 16),
                   const Divider(color: Color(0xFFF0F0F0), height: 1),
                   const SizedBox(height: 16),
                   // Favorites Heading
-                  Container(
-                    height: 50,
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('Favorites',
-                            style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF383838)))),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                    child: Text(
+                      'Favorites',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF252525),
+                      ),
+                    ),
                   ),
                   _buildNavItem('project_1', 'assets/icons/project.svg', 'Project 1'),
-                  const SizedBox(height: 3),
                   _buildNavItem('usman_todos', 'assets/icons/filter.svg', "Usman's Todos"),
                   const SizedBox(height: 16),
                   const Divider(color: Color(0xFFF0F0F0), height: 1),
                   const SizedBox(height: 16),
                   // Teams Heading
-                  Container(
-                    height: 50,
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('Teams',
-                            style: TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF383838)))),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                    child: Text(
+                      'Teams',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF252525),
+                      ),
+                    ),
                   ),
                   _buildTeamHeader("My Personal Team", isExpanded: false),
-                  const SizedBox(height: 3),
-                  _buildTeamHeader("Ashar's Team", isExpanded: true, color: const Color(0xFFED7FDE)),                  const SizedBox(height: 3),
-                  _buildNavItem('main_project', 'assets/icons/project.svg', 'Main Project', isIndented: true),
-                  const SizedBox(height: 3),
-                  _buildNavItem('other_projects', 'assets/icons/folder.svg', 'Other Projects', isIndented: true),
-                  const SizedBox(height: 3),
-                  _buildNavItem('sub_project', 'assets/icons/project.svg', 'Sub Project', isIndented: true, isSubItem: true),
+                  _buildTeamHeader("Ashar's Team", isExpanded: true, color: const Color(0xFFED7FDE)),
+                  _buildNavItem('main_project', 'assets/icons/project.svg', 'Main Project',
+                      isIndented: true),
+                  _buildNavItem('other_projects', 'assets/icons/folder.svg', 'Other Projects',
+                      isIndented: true),
+                  _buildNavItem('sub_project', 'assets/icons/project.svg', 'Sub Project',
+                      isIndented: true, isSubItem: true),
                 ],
               ),
             ),
           ),
           // Footer
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: const BoxDecoration(
+              color: Color(0xFFF9F9F9),
               border: Border(top: BorderSide(color: Color(0xFFF0F0F0))),
             ),
             child: Row(
               children: [
-                SvgPicture.asset('assets/icons/help.svg', width: 20, height: 20),
+                SvgPicture.asset(
+                  'assets/icons/help.svg',
+                  width: 20,
+                  height: 20,
+                  colorFilter: const ColorFilter.mode(Color(0xFF707070), BlendMode.srcIn),
+                ),
                 const SizedBox(width: 8),
-                const Text('Get Help', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF707070))),
+                const Text(
+                  'Get Help',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF707070),
+                  ),
+                ),
               ],
             ),
           ),
@@ -198,56 +271,100 @@ class _SidebarState extends State<Sidebar> {
     );
   }
 
-  Widget _buildNavItem(String pageKey, String iconPath, String label, {String? badge, bool isIndented = false, bool isSubItem = false, VoidCallback? onPressed}) {
-    final bool isActive = currentPage == pageKey;
-    return TextButton.icon(
-      onPressed: onPressed ?? () => onPageSelected(pageKey),
-      icon: SvgPicture.asset(iconPath, colorFilter: ColorFilter.mode(isActive ? const Color(0xFF383838) : const Color(0xFF707070), BlendMode.srcIn)),
-      label: Row(
-        children: [
-          Text(label),
-          const Spacer(),
-          if (badge != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEF4444).withOpacity(0.12),
-                borderRadius: BorderRadius.circular(48),
+  Widget _buildNavItem(String pageKey, String iconPath, String label,
+      {String? badge, bool isIndented = false, bool isSubItem = false, VoidCallback? onPressed}) {
+    final bool isActive = widget.currentPage == pageKey;
+    final Color contentColor = isActive ? const Color(0xFF252525) : const Color(0xFF707070);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: InkWell(
+        onTap: onPressed ?? () => widget.onPageSelected(pageKey),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          height: 39,
+          padding: EdgeInsets.fromLTRB(isIndented ? (isSubItem ? 60 : 34) : 8, 8, 8, 8),
+          decoration: BoxDecoration(
+            color: isActive ? const Color(0xFFF0F0F0) : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              SvgPicture.asset(
+                iconPath,
+                width: 18,
+                height: 18,
+                colorFilter: ColorFilter.mode(contentColor, BlendMode.srcIn),
               ),
-              child: Text(badge, style: const TextStyle(color: Color(0xFFEF4444), fontSize: 12)),
-            ),
-        ],
-      ),
-      style: TextButton.styleFrom(
-        minimumSize: const Size(double.infinity, 50),
-        padding: EdgeInsets.fromLTRB(isIndented ? (isSubItem ? 60 : 34) : 8, 8, 8, 8),
-        backgroundColor: isActive ? const Color(0xFFF0F0F0) : Colors.transparent,
-        foregroundColor: isActive ? const Color(0xFF383838) : const Color(0xFF707070),
-        alignment: Alignment.centerLeft,
-        textStyle: TextStyle(fontSize: 14, fontWeight: isActive ? FontWeight.w500 : FontWeight.normal),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+                    color: contentColor,
+                  ),
+                ),
+              ),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(48),
+                  ),
+                  child: Text(
+                    badge,
+                    style: const TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildTeamHeader(String name, {bool isExpanded = false, Color? color}) {
-    return TextButton(
-      onPressed: () {},
-      style: TextButton.styleFrom(
-        minimumSize: const Size(double.infinity, 50),
-        padding: const EdgeInsets.all(8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        foregroundColor: const Color(0xFF707070),
-      ),
+    return Container(
+      height: 40,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
           if (color != null)
-            Container(width: 20, height: 20, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(4)))
+            Container(
+              width: 20,
+              height: 20,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            )
           else
-            const Icon(Icons.account_circle_outlined, size: 20, color: Color(0xFF707070)),
+            SvgPicture.asset('assets/icons/avatar.svg', width: 20, height: 20),
           const SizedBox(width: 8),
-          Expanded(child: Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
-          if (isExpanded) SvgPicture.asset('assets/icons/chevron-down.svg'),
+          Expanded(
+            child: Text(
+              name,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF252525),
+              ),
+            ),
+          ),
+          SvgPicture.asset(
+            'assets/icons/chevron-down.svg',
+            width: 12,
+            height: 12,
+            colorFilter: const ColorFilter.mode(Color(0xFF707070), BlendMode.srcIn),
+          ),
         ],
       ),
     );

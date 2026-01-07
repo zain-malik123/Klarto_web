@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:typed_data';
+import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:klarto/screens/main_app_shell.dart';
 import 'package:klarto/widgets/custom_text_field.dart';
+import 'package:klarto/widgets/auth_background.dart';
 import 'package:klarto/apis/user_api_service.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -20,12 +22,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final TextEditingController _inviteController = TextEditingController();
   final UserApiService _userApiService = UserApiService();
   final ImagePicker _picker = ImagePicker();
+  Map<String, bool> _isMemberMap = {};
+  Timer? _debounceTimer;
 
   int _currentStep = 0;
   late final int _totalSteps;
   XFile? _selectedImage;
   Uint8List? _selectedImageBytes;
   bool _isLoading = false;
+  Map<String, Map<String, dynamic>> _inviteResults = {};
 
   void _nextPage() {
     if (_currentStep < (_totalSteps - 1)) {
@@ -127,6 +132,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return emails.take(5).map((e) => _buildEmailTag(e)).toList();
   }
 
+  void _scheduleMemberChecks() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      final text = _inviteController.text;
+      final emails = text.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+      if (emails.isEmpty) return;
+      final checks = await Future.wait(emails.map((e) => _userApiService.isMemberOfInviterTeam(e)));
+      final map = <String,bool>{};
+      for (var i=0;i<emails.length;i++) map[emails[i]] = checks[i];
+      if (mounted) setState(() { _isMemberMap = map; });
+    });
+  }
+
   bool _isValidEmail(String email) {
     final regex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', caseSensitive: false);
     return regex.hasMatch(email);
@@ -156,8 +174,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     try {
       final result = await _userApiService.inviteTeam(emails);
       if (result['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invitations sent.')));
-        await _completeOnboarding();
+        // Store per-email results so we can show messages like "already a member"
+        final List<dynamic> results = result['results'] ?? [];
+        _inviteResults = {
+          for (final r in results)
+            (r['email'] as String): Map<String, dynamic>.from(r as Map<String, dynamic>)
+        };
+        if (mounted) setState(() {});
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invitations processed.')));
+        // Do not auto-complete; show results to the user and let them tap the button again to finish.
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['message'] ?? 'Failed to send invites')));
       }
@@ -174,18 +199,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Common Background Image for all steps (based on A)
-          Positioned.fill(
-            child: Image.network(
-              'https://c.animaapp.com/xbC4Tecy/img/onboarding-1---welcome.png',
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(color: Colors.white),
-            ),
+          // High-fidelity background ornaments
+          const Positioned.fill(
+            child: BackgroundOrnaments(),
           ),
           SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: 20),
+                // Top-right Skip button for all onboarding pages
+                Align(
+                  alignment: Alignment.topRight,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                    child: TextButton(
+                      onPressed: _completeOnboarding,
+                      child: const Text('Skip', style: TextStyle(color: Color(0xFF707070))),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 // Progress Bar Header
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -241,6 +273,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _totalSteps = widget.showInviteStep ? 3 : 2;
     _inviteController.addListener(() {
       if (mounted) setState(() {});
+      _scheduleMemberChecks();
     });
   }
 
@@ -462,6 +495,33 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               children: _buildEmailTagsFromInput(),
             ),
           ),
+          const SizedBox(height: 12),
+          if (_inviteResults.isNotEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 8),
+                const Text('Invitation results:', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                ..._inviteResults.entries.map((e) {
+                  final email = e.key;
+                  final info = e.value;
+                  final success = info['success'] == true;
+                  final message = info['message'] ?? (success ? 'Invitation sent.' : 'Failed');
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      children: [
+                        Icon(success ? Icons.check_circle_outline : Icons.error_outline,
+                          size: 18, color: success ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text('$email — $message', style: TextStyle(color: success ? const Color(0xFF2E7D32) : const Color(0xFFC62828)))),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ],
+            ),
           
           const SizedBox(height: 24),
           const Text(
@@ -503,27 +563,28 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   Widget _buildEmailTag(String email) {
     final valid = _isValidEmail(email);
+    final alreadyMember = _isMemberMap[email] == true;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: valid ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE),
+        color: alreadyMember ? const Color(0xFFE3F2FD) : (valid ? const Color(0xFFE8F5E9) : const Color(0xFFFFEBEE)),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: valid ? const Color(0xFF66BB6A) : const Color(0xFFEF5350)),
+        border: Border.all(color: alreadyMember ? const Color(0xFF2196F3) : (valid ? const Color(0xFF66BB6A) : const Color(0xFFEF5350))),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            valid ? Icons.check_circle_outline : Icons.error_outline,
+            alreadyMember ? Icons.person : (valid ? Icons.check_circle_outline : Icons.error_outline),
             size: 16,
-            color: valid ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+            color: alreadyMember ? const Color(0xFF1976D2) : (valid ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
           ),
           const SizedBox(width: 8),
           Text(
             email,
             style: TextStyle(
               fontSize: 14,
-              color: valid ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+              color: alreadyMember ? const Color(0xFF1976D2) : (valid ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
             ),
           ),
           const SizedBox(width: 8),
@@ -541,7 +602,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             child: Icon(
               Icons.close,
               size: 14,
-              color: valid ? const Color(0xFF2E7D32) : const Color(0xFFC62828),
+              color: alreadyMember ? const Color(0xFF1976D2) : (valid ? const Color(0xFF2E7D32) : const Color(0xFFC62828)),
             ),
           ),
         ],

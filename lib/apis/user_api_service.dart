@@ -125,6 +125,22 @@ class UserApiService {
     }
   }
 
+  Future<bool> isMemberOfInviterTeam(String email) async {
+    final url = Uri.parse('$_baseUrl/team/check-member');
+    final headers = await _getHeaders();
+    headers['Content-Type'] = 'application/json';
+    try {
+      final response = await http.post(url, headers: headers, body: json.encode({'email': email}));
+      if (response.statusCode == 200) {
+        final body = json.decode(response.body);
+        return body['is_member'] == true;
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>> setPasswordForInvite({required String token, required String password}) async {
     final url = Uri.parse('$_baseUrl/team/invite/set-password');
     final headers = {'Content-Type': 'application/json'};
