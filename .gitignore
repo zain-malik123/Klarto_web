@@ -25,7 +25,6 @@ build/
 pubspec.lock
 
 # Generated files
-lib/generated_plugin_registrant.dart
 
 # Platform-specific files
 /android/local.properties
