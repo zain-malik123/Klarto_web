@@ -21,7 +21,7 @@
 # Flutter/Dart
 .dart_tool/
 .packages
-build/
+#build/
 pubspec.lock
 
 # Generated files
