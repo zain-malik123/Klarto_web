@@ -3,7 +3,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:klarto/apis/labels_api_service.dart';
 
 class AddLabelDialog extends StatefulWidget {
-  const AddLabelDialog({super.key});
+  final Map<String, dynamic>? label;
+
+  const AddLabelDialog({super.key, this.label});
 
   @override
   State<AddLabelDialog> createState() => _AddLabelDialogState();
@@ -30,6 +32,22 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.label != null) {
+      _nameController.text = widget.label!['name'] ?? '';
+      _isFavorite = widget.label!['is_favorite'] ?? false;
+      final colorStr = widget.label!['color'] as String?;
+      if (colorStr != null) {
+        try {
+          final colorVal = int.parse(colorStr.replaceFirst('#', 'ff'), radix: 16);
+          _selectedColor = Color(colorVal);
+        } catch (_) {}
+      }
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
@@ -37,6 +55,7 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
 
   @override
   Widget build(BuildContext context) {
+    bool isEditing = widget.label != null;
     return Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -55,7 +74,7 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
                     children: [
                       SvgPicture.asset('assets/icons/tag.svg', width: 24, height: 24),
                       const SizedBox(width: 8),
-                      const Text('Add Label', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF383838))),
+                      Text(isEditing ? 'Edit Label' : 'Add Label', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF383838))),
                     ],
                   ),
                   IconButton(
@@ -116,7 +135,7 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                           ),
-                          child: const Text('Add Label', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+                          child: Text(isEditing ? 'Save Changes' : 'Add Label', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
                         ),
                 ],
               ),
@@ -133,11 +152,19 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final result = await _labelsApiService.createLabel(
-        name: _nameController.text,
-        color: '#${_selectedColor.value.toRadixString(16).substring(2)}',
-        isFavorite: _isFavorite,
-      );
+      final colorHex = '#${_selectedColor.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+      final result = widget.label != null
+          ? await _labelsApiService.updateLabel(
+              id: widget.label!['id'],
+              name: _nameController.text,
+              color: colorHex,
+              isFavorite: _isFavorite,
+            )
+          : await _labelsApiService.createLabel(
+              name: _nameController.text,
+              color: colorHex,
+              isFavorite: _isFavorite,
+            );
 
       if (!mounted) return;
 

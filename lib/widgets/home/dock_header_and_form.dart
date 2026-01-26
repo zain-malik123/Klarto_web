@@ -5,7 +5,10 @@ import 'package:klarto/widgets/calendar_dialog.dart';
 import 'package:klarto/widgets/priority_selection_dialog.dart';
 import 'package:klarto/widgets/label_selection_dialog.dart';
 import 'package:klarto/models/label.dart';
+import 'package:klarto/models/project.dart';
 import 'package:klarto/apis/todos_api_service.dart';
+import 'package:klarto/apis/labels_api_service.dart';
+import 'package:klarto/apis/user_api_service.dart';
 
 class DockHeaderAndForm extends StatefulWidget {
   final VoidCallback onTodoAdded;
@@ -19,15 +22,66 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   late final TodosApiService _todosApiService;
-  String _selectedLocation = 'Project 1';
+  late final LabelsApiService _labelsApiService;
+  late final UserApiService _userApiService;
+  final List<Project> _projects = [];
+  Project? _selectedProject;
   DateTimeSelection? _dateTimeSelection;
   int? _selectedPriority;
   Label? _selectedLabel;
+  Label? _defaultLabel;
 
   @override
   void initState() {
     super.initState();
     _todosApiService = TodosApiService();
+    _userApiService = UserApiService();
+    _dateTimeSelection = _defaultDateTimeSelection();
+    _selectedPriority = 4; // default to 4th priority
+    _labelsApiService = LabelsApiService();
+    _setDefaultLabel();
+    _loadProjects();
+  }
+
+  Future<String> _generateIncompleteTitle() async {
+    try {
+      final res = await _todosApiService.getTodos();
+      if (res['success'] == true && res['data'] is List) {
+          final list = List.from(res['data'] as List);
+          final used = <int>{};
+          for (final item in list) {
+            try {
+              final title = (item['title'] ?? '') as String;
+              if (title.toLowerCase().startsWith('incomplete')) {
+                final numMatch = RegExp(r'(\d+)').firstMatch(title);
+                if (numMatch != null) {
+                  final n = int.tryParse(numMatch.group(1) ?? '0') ?? 0;
+                  if (n > 0) used.add(n);
+                } else {
+                  used.add(1);
+                }
+              }
+            } catch (_) {}
+          }
+          int i = 1;
+          while (used.contains(i)) i++;
+          return 'Incomplete. $i';
+      }
+    } catch (_) {}
+    return 'Incomplete. 1';
+  }
+
+  DateTimeSelection _defaultDateTimeSelection() {
+    final now = DateTime.now();
+    final timeNow = TimeOfDay.fromDateTime(now);
+    final totalMinutes = timeNow.hour * 60 + timeNow.minute + 5; // 5 minutes ahead
+    final newHour = (totalMinutes ~/ 60) % 24;
+    final newMinute = totalMinutes % 60;
+    return DateTimeSelection(
+      date: DateTime(now.year, now.month, now.day),
+      time: TimeOfDay(hour: newHour, minute: newMinute),
+      repeatValue: 'No Repeat',
+    );
   }
 
   @override
@@ -41,22 +95,87 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
     setState(() {
       _titleController.clear();
       _descriptionController.clear();
-      _dateTimeSelection = null;
-      _selectedPriority = null;
-      _selectedLabel = null;
+      _dateTimeSelection = _defaultDateTimeSelection();
+      _selectedPriority = 4;
+      _selectedLabel = _defaultLabel;
     });
   }
 
+  Future<void> _setDefaultLabel() async {
+    try {
+      final res = await _labelsApiService.getLabels();
+      if (res['success'] == true && res['data'] is List) {
+        final list = List.from(res['data'] as List);
+        if (list.isNotEmpty) {
+          Map<String, dynamic>? pick;
+          for (final item in list) {
+            try {
+              final name = (item['name'] ?? '') as String;
+              if (name.toLowerCase() == 'default') {
+                pick = item as Map<String, dynamic>;
+                break;
+              }
+            } catch (_) {}
+          }
+          pick ??= list.first as Map<String, dynamic>;
+          final label = Label.fromJson(pick);
+          if (mounted) setState(() { _defaultLabel = label; if (_selectedLabel == null) _selectedLabel = label; });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadProjects() async {
+    try {
+      final res = await _userApiService.getProjects();
+      if (res['success'] == true && res['projects'] is List) {
+        final list = (res['projects'] as List).map((p) => Project.fromJson(p)).toList();
+        if (mounted) {
+          setState(() {
+            _projects.clear();
+            _projects.addAll(list);
+            if (_projects.isNotEmpty) {
+              _selectedProject = _projects.first;
+            }
+          });
+        }
+      }
+    } catch (e) {
+      print('Error loading projects: $e');
+    }
+  }
+
   Future<void> _handleAddTodo() async {
-    // --- Validation ---
-    if (_titleController.text.trim().isEmpty ||
-        _descriptionController.text.trim().isEmpty ||
-        _dateTimeSelection == null ||
-        _selectedPriority == null ||
-        _selectedLabel == null) {
+    // --- Prepare title/description and Validation ---
+    String title = _titleController.text.trim();
+    String description = _descriptionController.text.trim();
+
+    if (title.isEmpty) {
+      title = await _generateIncompleteTitle();
+    }
+
+    // Apply defaults when not selected
+    if (_dateTimeSelection == null) {
+      _dateTimeSelection = _defaultDateTimeSelection();
+    }
+    if (_selectedPriority == null) {
+      _selectedPriority = 4;
+    }
+
+    if (_selectedLabel == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please fill all fields: title, description, date, priority, and label.'),
+          content: Text('Please select a label.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    if (_selectedProject == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a project.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -65,9 +184,10 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
 
     // --- Data is valid, call the API ---
     final result = await _todosApiService.createTodo(
-      title: _titleController.text.trim(),
-      description: _descriptionController.text.trim(),
-      projectName: _selectedLocation,
+      title: title,
+      description: description,
+      projectName: _selectedProject!.name,
+      projectId: _selectedProject!.id,
       dueDate: DateFormat('yyyy-MM-dd').format(_dateTimeSelection!.date!),
       dueTime: '${_dateTimeSelection!.time!.hour.toString().padLeft(2, '0')}:${_dateTimeSelection!.time!.minute.toString().padLeft(2, '0')}',
       repeatValue: _dateTimeSelection!.repeatValue,
@@ -177,18 +297,18 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
                       const SizedBox(width: 6),
                       Container(
                         color: Colors.white,
-                        child: DropdownButton<String>(
-                          value: _selectedLocation,
-                          onChanged: (String? newValue) {
+                        child: DropdownButton<Project>(
+                          value: _selectedProject,
+                          onChanged: (Project? newValue) {
                             setState(() {
-                              _selectedLocation = newValue!;
+                              _selectedProject = newValue;
                             });
                           },
-                          items: <String>['Project 1', 'Project 2', 'Project 3']
-                              .map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value, style: const TextStyle(fontSize: 12, color: Color(0xFF707070))),
+                          items: _projects
+                              .map<DropdownMenuItem<Project>>((Project project) {
+                            return DropdownMenuItem<Project>(
+                              value: project,
+                              child: Text(project.name, style: const TextStyle(fontSize: 12, color: Color(0xFF707070))),
                             );
                           }).toList(),
                           dropdownColor: Colors.white,

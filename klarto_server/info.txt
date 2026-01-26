@@ -22,6 +22,17 @@ check running service
 sudo kill -9 12345
 
 
+TOKEN=$(curl -s -X POST "http://localhost:3000/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"you@example.com","password":"YourPasswordHere"}' \
+  | py -c "import sys,json; print(json.load(sys.stdin).get('token',''))")
+echo "$TOKEN"
+
+curl -i -X GET "http://localhost:3000/profile/avatar" \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImI5ZmE0M2QyLTVkMWQtNDkxOS04YTMwLWRhYjc0ZTNlODljMiIsImlhdCI6MTc2OTMzNDg0NywiZXhwIjoxNzY5OTM5NjQ3fQ.Wzq8fVzAvhQAkaWNDGZEU8VV5rGEC44iYvqtLkNgjQs"
+curl -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImI5ZmE0M2QyLTVkMWQtNDkxOS04YTMwLWRhYjc0ZTNlODljMiIsImlhdCI6MTc2OTMzNDg0NywiZXhwIjoxNzY5OTM5NjQ3fQ.Wzq8fVzAvhQAkaWNDGZEU8VV5rGEC44iYvqtLkNgjQs" http://localhost:8080/activities
+
+curl -v -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImI5ZmE0M2QyLTVkMWQtNDkxOS04YTMwLWRhYjc0ZTNlODljMiIsImlhdCI6MTc2OTMzNDg0NywiZXhwIjoxNzY5OTM5NjQ3fQ.Wzq8fVzAvhQAkaWNDGZEU8VV5rGEC44iYvqtLkNgjQs" http://localhost:3000/activities
 
 Sendgrid
 52TFY2HNCBKRDQ22BFJQLEX8
@@ -39,10 +50,22 @@ git add . && git commit -m "onboarding" && git push
 
 local db dump
 =============
-"/c/Program Files/PostgreSQL/13/bin/pg_dump.exe" -U klarto_api_user -h localhost -p 5432 -d klarto_db -s -f "/c/Users/YourUser/Desktop/db_schema.sql"
+"/c/Program Files/PostgreSQL/13/bin/pg_dump.exe" \
+  -U klarto_api_user \
+  -h localhost \
+  -p 5432 \
+  -d klarto_db \
+  -s \
+  -f "./db_schema.sql"
 
 remote use dump
 ==============
+drop current schema
+psql -U klarto_api_user -h localhost -p 5432 -d klarto_db
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO klarto_api_user;
+
 psql -U klarto_api_user -h localhost -p 5432 -d klarto_db -f db_schema.sql
 
 curl -X POST "https://smtp.maileroo.com/api/v2/emails" \
@@ -67,5 +90,8 @@ curl -X POST "https://smtp.maileroo.com/api/v2/emails" \
 remote databse
 ================
 psql -U klarto_api_user -d klarto_db
-
+curl -H "Authorization: Bearer <JWT>" http://localhost:8080/team/invited
 TRUNCATE TABLE users RESTART IDENTITY CASCADE;
+
+"/c/Program Files/PostgreSQL/13/bin/psql.exe" -h localhost -p 5432 -U klarto_api_user -d klarto_db -f "/e/Projects/Klarto/final_code/klarto_server/Klarto_server/migrations/0006_add_primary_keys_to_teams.sql"
+"/c/Program Files/PostgreSQL/13/bin/psql.exe" -h localhost -p 5432 -U klarto_api_user -d klarto_db -f "/e/Projects/Klarto/final_code/klarto_server/Klarto_server/scripts/clear_all_data.sql"

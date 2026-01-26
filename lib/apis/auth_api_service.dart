@@ -62,7 +62,9 @@ class AuthApiService {
       return {
         'success': true,
         'token': responseBody['token'],
+        'user_id': responseBody['user_id'],
         'invited': responseBody['invited'] == true,
+        'has_completed_onboarding': responseBody['has_completed_onboarding'] == true,
       };
     } else {
       // Handle other status codes (400, 401, 403, 500)

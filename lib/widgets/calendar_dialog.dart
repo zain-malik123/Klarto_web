@@ -31,6 +31,12 @@ class _CalendarDialogState extends State<CalendarDialog> {
   void initState() {
     super.initState();
     _selectedDate = _currentDisplayDate;
+    // Default time a few minutes ahead to avoid immediate past times
+    final now = TimeOfDay.now();
+    final totalMinutes = now.hour * 60 + now.minute + 5; // 5 minutes ahead
+    final newHour = (totalMinutes ~/ 60) % 24;
+    final newMinute = totalMinutes % 60;
+    _selectedTime = TimeOfDay(hour: newHour, minute: newMinute);
     _updateDateInputText();
   }
 
@@ -331,15 +337,15 @@ class _CalendarDialogState extends State<CalendarDialog> {
         const SizedBox(width: 10),
         ElevatedButton(
           onPressed: () {
-            if (_selectedDate == null || _selectedTime == null || _repeatValue == 'No Repeat') {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Please select a date, time, and repeat option.'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-              return;
-            }
+            if (_selectedDate == null || _selectedTime == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select a date and time.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
 
             final selection = DateTimeSelection(
               date: _selectedDate,

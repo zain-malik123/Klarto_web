@@ -1,14 +1,16 @@
 class Todo {
-  final String id;
-  final String title;
-  final String? description;
-  final bool isCompleted;
-  final String? dueDate;
-  final String? dueTime;
-  final int? priority;
-  final String? labelName;
-  final String? labelColor;
-  final String? projectName;
+  String id;
+  String title;
+  String? description;
+  bool isCompleted;
+  String? dueDate;
+  String? dueTime;
+  int? priority;
+  String? labelName;
+  String? labelColor;
+  String? labelId;
+  String? projectName;
+  String? projectId;
 
   Todo({
     required this.id,
@@ -20,7 +22,9 @@ class Todo {
     this.priority,
     this.labelName,
     this.labelColor,
+    this.labelId,
     this.projectName,
+    this.projectId,
   });
 
   factory Todo.fromJson(Map<String, dynamic> json) {
@@ -28,13 +32,15 @@ class Todo {
       id: json['id'] as String,
       title: json['title'] as String,
       description: json['description'] as String?,
-      isCompleted: json['is_completed'] as bool,
+      isCompleted: json['is_completed'] as bool? ?? false,
       dueDate: json['due_date'] as String?,
-      dueTime: json['due_time'] as String?, // This was the missing piece
+      dueTime: json['due_time'] as String?,
       priority: json['priority'] as int?,
       labelName: json['label_name'] as String?,
       labelColor: json['label_color'] as String?,
+      labelId: json['label_id'] as String?,
       projectName: json['project_name'] as String?,
+      projectId: json['project_id'] as String?,
     );
   }
 

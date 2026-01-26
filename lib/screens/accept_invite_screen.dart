@@ -53,7 +53,7 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
       final bool onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => onboardingCompleted ? const MainAppShell() : const OnboardingScreen(showInviteStep: false)),
+        MaterialPageRoute(builder: (context) => onboardingCompleted ? MainAppShell() : const OnboardingScreen(showInviteStep: false)),
         (route) => false,
       );
     } else {

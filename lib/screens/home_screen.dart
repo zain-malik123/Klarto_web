@@ -55,7 +55,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 return const Center(child: Text('No todos yet. Add one above!'));
               }
               final todos = snapshot.data!;
-              return TodoList(todos: todos);
+              return TodoList(todos: todos, onTodoChanged: _refreshTodos);
             },
           ),
         ],

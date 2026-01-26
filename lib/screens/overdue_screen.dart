@@ -22,22 +22,11 @@ class _OverdueScreenState extends State<OverdueScreen> {
   }
 
   Future<List<Todo>> _fetchOverdueTodos() async {
-    final result = await _todosApiService.getTodos();
+    final today = DateTime.now();
+    final todayString = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    final result = await _todosApiService.getTodos(filter: 'overdue', date: todayString);
     if (result['success'] && result['data'] is List) {
-      final allTodos = (result['data'] as List).map((json) => Todo.fromJson(json)).toList();
-      final today = DateTime.now();
-      final todayMidnight = DateTime(today.year, today.month, today.day);
-
-      return allTodos.where((todo) {
-        if (todo.dueDate == null) return false;
-        try {
-          final dueDate = DateTime.parse(todo.dueDate!);
-          // An overdue task is one that is not completed and its due date is before today.
-          return !todo.isCompleted && dueDate.isBefore(todayMidnight);
-        } catch (e) {
-          return false;
-        }
-      }).toList();
+      return (result['data'] as List).map((json) => Todo.fromJson(json)).toList();
     }
     return [];
   }
@@ -75,7 +64,7 @@ class _OverdueScreenState extends State<OverdueScreen> {
               if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text('No overdue todos.'));
               }
-              return TodoList(todos: snapshot.data!);
+              return TodoList(todos: snapshot.data!, onTodoChanged: () => setState(() => _todosFuture = _fetchOverdueTodos()));
             },
           ),
         ),

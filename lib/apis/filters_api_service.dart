@@ -66,6 +66,25 @@ class FiltersApiService {
     return {'success': response.statusCode == 200, 'data': responseBody, 'message': responseBody is Map ? responseBody['message'] : 'Failed to parse response.'};
   }
 
+  Future<Map<String, dynamic>> updateFilterFavorite(String id, bool isFavorite) async {
+    final url = Uri.parse('$_baseUrl/filters/$id');
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    if (token == null) return {'success': false, 'message': 'Not authenticated.'};
+
+    final response = await http.patch(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({'is_favorite': isFavorite}),
+    );
+
+    final responseBody = response.body.isNotEmpty ? json.decode(response.body) : null;
+    return {'success': response.statusCode == 200, 'data': responseBody, 'message': responseBody is Map ? responseBody['message'] : null};
+  }
+
   Future<Map<String, dynamic>> deleteFilter(String id) async {
     final url = Uri.parse('$_baseUrl/filters/$id');
     

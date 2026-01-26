@@ -4,4 +4,5 @@ class AppConfig {
   // - Android Emulator: 'http://10.0.2.2:8080'
   // - iOS Simulator / Desktop / Web: 'http://localhost:8080'
   static const String baseUrl = 'https://klarto.io/api';
+  //static const String baseUrl = 'http://127.0.0.1:3000';
 }

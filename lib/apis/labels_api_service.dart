@@ -60,6 +60,7 @@ class LabelsApiService {
   }
 
   Future<Map<String, dynamic>> deleteLabel(String id) async {
+    // deleting label
     final url = Uri.parse('$_baseUrl/labels/$id');
     
     final prefs = await SharedPreferences.getInstance();
@@ -75,6 +76,38 @@ class LabelsApiService {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
+    );
+
+    final responseBody = json.decode(response.body);
+    return {'success': response.statusCode == 200, 'message': responseBody['message']};
+  }
+
+  Future<Map<String, dynamic>> updateLabel({
+    required String id,
+    required String name,
+    required String color,
+    required bool isFavorite,
+  }) async {
+    final url = Uri.parse('$_baseUrl/labels/$id');
+    
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    if (token == null) {
+      return {'success': false, 'message': 'Not authenticated. Please log in again.'};
+    }
+
+    final response = await http.put(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: json.encode({
+        'name': name,
+        'color': color,
+        'is_favorite': isFavorite,
+      }),
     );
 
     final responseBody = json.decode(response.body);

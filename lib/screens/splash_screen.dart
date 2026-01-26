@@ -3,6 +3,10 @@ import 'package:klarto/screens/login_screen.dart';
 import 'package:klarto/screens/reset_password_confirm_screen.dart';
 import 'package:klarto/screens/accept_invite_screen.dart';
 import 'package:klarto/apis/auth_api_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:klarto/apis/user_api_service.dart';
+import 'package:klarto/screens/main_app_shell.dart';
+import 'package:klarto/screens/onboarding/onboarding_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -47,6 +51,26 @@ class _SplashScreenState extends State<SplashScreen> {
         ),
       );
     } else {
+      // If there's a stored JWT, validate it and go to the app instead of login.
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final token = prefs.getString('jwt_token');
+        if (token != null && token.isNotEmpty) {
+          final userApi = UserApiService();
+          final profile = await userApi.getProfile();
+          if (profile['success'] == true) {
+            if (!mounted) return;
+            final bool onboarded = profile['has_completed_onboarding'] == true;
+            if (onboarded) {
+              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => MainAppShell()));
+            } else {
+              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => OnboardingScreen()));
+            }
+            return;
+          }
+        }
+      } catch (_) {}
+
       // Default to login screen, passing along any query parameters
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (context) => LoginScreen(queryParams: uri.queryParameters)),

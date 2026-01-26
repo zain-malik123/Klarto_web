@@ -3,6 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:klarto/widgets/home/toolbar.dart';
 import 'package:klarto/widgets/add_filter_dialog.dart';
 import 'package:klarto/widgets/add_label_dialog.dart';
+import 'package:klarto/screens/filtered_todos_screen.dart';
+import 'package:klarto/screens/main_app_shell.dart';
 import 'package:klarto/apis/filters_api_service.dart';
 import 'package:klarto/apis/labels_api_service.dart';
 
@@ -109,12 +111,13 @@ class _FiltersAndLabelsScreenState extends State<FiltersAndLabelsScreen> {
                       final filters = snapshot.data!;
                       return _buildSection(
                         title: 'Filters',
+                        showAddButton: false, // User requested to remove Add filter button
                         onAdd: () async {
                           await showDialog(context: context, builder: (context) => const AddFilterDialog());
                           setState(() { _loadData(); }); // Refresh data after dialog closes
                         },
                         items: filters.map((filter) => 
-                          _buildListItem(type: 'Filters', item: filter, count: 0) // Count is hardcoded for now
+                          _buildListItem(type: 'Filters', item: filter, count: 0)
                         ).toList(),
                       );
                     },
@@ -132,12 +135,13 @@ class _FiltersAndLabelsScreenState extends State<FiltersAndLabelsScreen> {
                       final labels = snapshot.data!;
                       return _buildSection(
                         title: 'Labels',
+                        showAddButton: true,
                         onAdd: () async {
                           await showDialog(context: context, builder: (context) => const AddLabelDialog());
                           setState(() { _loadData(); }); // Refresh data after dialog closes
                         },
                         items: labels.map((label) => 
-                          _buildListItem(type: 'Labels', item: label, count: 0) // Count is hardcoded for now
+                          _buildListItem(type: 'Labels', item: label, count: 0)
                         ).toList(),
                       );
                     },
@@ -151,23 +155,24 @@ class _FiltersAndLabelsScreenState extends State<FiltersAndLabelsScreen> {
     );
   }
 
-  Widget _buildSection({required String title, required VoidCallback onAdd, required List<Widget> items}) {
+  Widget _buildSection({required String title, required VoidCallback onAdd, required List<Widget> items, bool showAddButton = true}) {
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF383838))),
-            TextButton.icon(
-              onPressed: onAdd,
-              icon: SvgPicture.asset('assets/icons/add-square.svg', width: 14, height: 14),
-              label: Text('Add ${title.substring(0, title.length - 1)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF3D4CD6),
-                side: const BorderSide(color: Color(0xFFE0E0E0)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            if (showAddButton)
+              TextButton.icon(
+                onPressed: onAdd,
+                icon: SvgPicture.asset('assets/icons/add-square.svg', width: 14, height: 14),
+                label: Text('Add ${title.substring(0, title.length - 1)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF3D4CD6),
+                  side: const BorderSide(color: Color(0xFFE0E0E0)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
               ),
-            ),
           ],
         ),
         const Divider(height: 25, color: Color(0xFFF0F0F0)),
@@ -188,21 +193,77 @@ class _FiltersAndLabelsScreenState extends State<FiltersAndLabelsScreen> {
         children: [
           SvgPicture.asset(type == 'Filters' ? 'assets/icons/filter.svg' : 'assets/icons/tag.svg', width: 20, height: 20, colorFilter: const ColorFilter.mode(Color(0xFF383838), BlendMode.srcIn)),
           const SizedBox(width: 6),
-          Text(item['name'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF383838))),
+          // Make the name tappable for Filters to open a filtered todo view
+          if (type == 'Filters')
+            GestureDetector(
+              onTap: () {
+                final rawQuery = item['query'] as String?;
+                final query = (rawQuery != null && rawQuery.trim().isNotEmpty) ? rawQuery.trim() : null;
+                final title = (item['name'] as String?) ?? 'Filter';
+                if (query == null) {
+                  print('FiltersAndLabels: tapped filter "${title}" but query is empty');
+                  return; // nothing to open
+                }
+                print('FiltersAndLabels: opening filter "$title" -> query="$query"');
+                // Map certain well-known filter queries to the named pages used by
+                // the left menu so the behavior matches the left nav (Today/Overdue).
+                final qLower = query.toLowerCase();
+                if (qLower == 'due_today' || qLower == 'today') {
+                  Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => MainAppShell(initialPage: 'today')));
+                } else if (qLower == 'overdue') {
+                  Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => MainAppShell(initialPage: 'overdue')));
+                } else {
+                  Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => MainAppShell(initialFilter: query, initialFilterTitle: title)));
+                }
+              },
+              child: Text(item['name'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF383838))),
+            )
+          else
+            Text(item['name'], style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Color(0xFF383838))),
           const SizedBox(width: 6),
           Text('($count Todos)', style: const TextStyle(fontSize: 12, color: Color(0xFF707070))),
           const Spacer(),
-          _buildActionIcon('assets/icons/trash.svg', () => _deleteItem(type, item['id'])),
+          if (type != 'Filters')
+            _buildActionIcon('assets/icons/trash.svg', () => _deleteItem(type, item['id'])),
           const SizedBox(width: 10),
           _buildActionIcon('assets/icons/link.svg'),
           const SizedBox(width: 10),
-          _buildActionIcon('assets/icons/edit.svg'),
+          _buildActionIcon('assets/icons/edit.svg', type == 'Labels' ? () async {
+            await showDialog(
+              context: context,
+              builder: (context) => AddLabelDialog(label: item),
+            );
+            setState(() { _loadData(); });
+          } : null),
           const SizedBox(width: 10),
-          _buildActionIcon('assets/icons/heart.svg'),
+          if (type == 'Filters')
+            (() {
+              final id = item['id'] as String?;
+              final current = (item['is_favorite'] ?? false) as bool;
+              return IconButton(
+                onPressed: () async {
+                  if (id == null) return;
+                  final res = await _filtersApiService.updateFilterFavorite(id, !current);
+                  if (res['success'] == true) {
+                    // Refresh filters list and rebuild main shell so sidebar reloads favorites
+                    if (mounted) setState(() { _loadData(); });
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(!current ? 'Added to favorites' : 'Removed from favorites')));
+                    Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => MainAppShell(initialPage: 'filters_and_labels')));
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'] ?? 'Failed to update favorite')));
+                  }
+                },
+                icon: current
+                  ? const Icon(Icons.favorite, size: 18, color: Color(0xFFE53935))
+                  : const Icon(Icons.favorite_border, size: 18, color: Color(0xFF707070)),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              );
+            })()
+          else
+            _buildActionIcon('assets/icons/heart.svg'),
           const SizedBox(width: 10),
           const VerticalDivider(width: 1, color: Color(0xFFF0F0F0)),
-          const SizedBox(width: 10),
-          _buildActionIcon('assets/icons/three-dots.svg'),
         ],
       ),
     );

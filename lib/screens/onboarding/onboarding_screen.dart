@@ -31,6 +31,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Uint8List? _selectedImageBytes;
   bool _isLoading = false;
   Map<String, Map<String, dynamic>> _inviteResults = {};
+  bool _readyToFinish = false;
 
   void _nextPage() {
     if (_currentStep < (_totalSteps - 1)) {
@@ -118,12 +119,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _completeOnboarding() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_completed', true);
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (context) => const MainAppShell()),
-    );
+    setState(() => _isLoading = true);
+    try {
+      final userApi = UserApiService();
+      await userApi.completeOnboarding();
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('onboarding_completed', true);
+      
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => MainAppShell()),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to complete onboarding. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   List<Widget> _buildEmailTagsFromInput() {
@@ -176,11 +194,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (result['success'] == true) {
         // Store per-email results so we can show messages like "already a member"
         final List<dynamic> results = result['results'] ?? [];
-        _inviteResults = {
+        final mapped = {
           for (final r in results)
             (r['email'] as String): Map<String, dynamic>.from(r as Map<String, dynamic>)
         };
-        if (mounted) setState(() {});
+        if (mounted) {
+          setState(() {
+            _inviteResults = mapped;
+            _readyToFinish = true;
+          });
+        }
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invitations processed.')));
         // Do not auto-complete; show results to the user and let them tap the button again to finish.
       } else {
@@ -272,7 +295,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.initState();
     _totalSteps = widget.showInviteStep ? 3 : 2;
     _inviteController.addListener(() {
-      if (mounted) setState(() {});
+      if (mounted) setState(() { _readyToFinish = false; });
       _scheduleMemberChecks();
     });
   }
@@ -537,7 +560,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             width: double.infinity,
             height: 40,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _handleStep3Submit,
+              onPressed: _isLoading ? null : (_readyToFinish ? _completeOnboarding : _handleStep3Submit),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3D4CD6),
                 shape: RoundedRectangleBorder(

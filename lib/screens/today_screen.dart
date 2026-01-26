@@ -34,13 +34,11 @@ class TodayScreenState extends State<TodayScreen> {
     });
   }
   Future<List<Todo>> _fetchTodayTodos() async {
-    final result = await _todosApiService.getTodos();
+    final today = DateTime.now();
+    final todayString = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    final result = await _todosApiService.getTodos(filter: 'due_today', date: todayString);
     if (result['success'] && result['data'] is List) {
-      final allTodos = (result['data'] as List).map((json) => Todo.fromJson(json)).toList();
-      final today = DateTime.now();
-      final todayString = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
-      
-      return allTodos.where((todo) => todo.dueDate == todayString).toList();
+      return (result['data'] as List).map((json) => Todo.fromJson(json)).toList();
     }
     return [];
   }
@@ -74,7 +72,7 @@ class TodayScreenState extends State<TodayScreen> {
               if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text('No todos due today.'));
               }
-              return TodoList(todos: snapshot.data!);
+              return TodoList(todos: snapshot.data!, onTodoChanged: refresh);
             },
           ),
         ),

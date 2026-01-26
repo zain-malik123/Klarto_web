@@ -101,10 +101,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // Store the JWT for subsequent API calls
         await prefs.setString('jwt_token', result['token']);
+        if (result['user_id'] != null) {
+          await prefs.setString('user_id', result['user_id']);
+        }
         
         if (!mounted) return;
         // Show onboarding only if not completed; invited users skip the invite step.
-        final bool onboarded = prefs.getBool('onboarding_completed') ?? false;
+        final bool onboarded = result['has_completed_onboarding'] == true;
         final bool invited = result['invited'] == true;
         if (!onboarded) {
           if (!mounted) return;
@@ -114,7 +117,7 @@ class _LoginScreenState extends State<LoginScreen> {
         } else {
           if (!mounted) return;
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const MainAppShell()),
+            MaterialPageRoute(builder: (context) => MainAppShell()),
           );
         }
       } else {
