@@ -11,6 +11,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:klarto/apis/user_api_service.dart';
 import 'package:klarto/widgets/add_project_dialog.dart';
+import 'package:klarto/widgets/add_label_dialog.dart';
 
 class AddTodoDialog extends StatefulWidget {
   final Project? initialProject;
@@ -164,6 +165,27 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
       return;
     }
 
+    if (_selectedLabel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please create a label first before adding a task.'),
+          backgroundColor: Colors.orange[800],
+          action: SnackBarAction(
+            label: 'ADD LABEL',
+            textColor: Colors.white,
+            onPressed: () async {
+              await showDialog(
+                context: context,
+                builder: (context) => const AddLabelDialog(),
+              );
+              await _loadDefaultLabel();
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isSaving = true);
 
     if (title.isEmpty) {
@@ -233,6 +255,7 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
             ),
             const SizedBox(height: 10),
             if (_projects.isEmpty) _buildProjectHint(),
+            if (_projects.isNotEmpty && _selectedLabel == null) _buildLabelHint(),
             const SizedBox(height: 10),
             TextField(
               controller: _titleController,
@@ -349,6 +372,52 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                   ),
                   child: const Text('Add Project', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabelHint() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4E5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFFB347).withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFE67E22), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Before adding a task, you need a label.',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFC36A12)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await showDialog(
+                      context: context,
+                      builder: (context) => const AddLabelDialog(),
+                    );
+                    _loadDefaultLabel();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE67E22),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                    minimumSize: const Size(0, 24),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  ),
+                  child: const Text('Add Label', style: TextStyle(fontSize: 11)),
                 ),
               ],
             ),

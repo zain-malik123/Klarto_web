@@ -17,7 +17,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
   
   Color _selectedColor = const Color(0xFFFF6B6B);
   bool _isFavorite = false;
-  String _selectedAccess = 'Everyone';
+  String _selectedAccess = 'Private';
   bool _isLoading = false;
 
   final List<Color> _colors = [
@@ -110,7 +110,7 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
                           child: DropdownButton<String>(
                             value: _selectedAccess,
                             isExpanded: true,
-                            items: ['Everyone', ...(widget.teams ?? [])]
+                            items: ['Private', ...(widget.teams ?? [])]
                                 .map<DropdownMenuItem<String>>((s) => DropdownMenuItem<String>(value: s, child: Text(s, style: const TextStyle(fontSize: 14))))
                                 .toList(),
                             onChanged: (val) => setState(() => _selectedAccess = val!),

@@ -10,6 +10,7 @@ import 'package:klarto/apis/todos_api_service.dart';
 import 'package:klarto/apis/labels_api_service.dart';
 import 'package:klarto/apis/user_api_service.dart';
 import 'package:klarto/widgets/add_project_dialog.dart';
+import 'package:klarto/widgets/add_label_dialog.dart';
 
 class DockHeaderAndForm extends StatefulWidget {
   final VoidCallback onTodoAdded;
@@ -107,6 +108,58 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
             ),
             child: const Text('Add Project', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLabelHint() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4E5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFFB347).withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFE67E22), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'No labels found!',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFC36A12)),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'You must create a label (tag) before adding your first todo.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFFC36A12)),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await showDialog(
+                context: context,
+                builder: (context) => const AddLabelDialog(),
+              );
+              _setDefaultLabel();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE67E22),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: const Size(0, 0),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            child: const Text('Add Label', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -236,6 +289,27 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
     if (_selectedLabel == null && _defaultLabel != null) {
       _selectedLabel = _defaultLabel;
     }
+
+    if (_selectedLabel == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please create a label first before adding a todo.'),
+          backgroundColor: Colors.orange[800],
+          action: SnackBarAction(
+            label: 'ADD LABEL',
+            textColor: Colors.white,
+            onPressed: () async {
+              await showDialog(
+                context: context,
+                builder: (context) => const AddLabelDialog(),
+              );
+              await _setDefaultLabel();
+            },
+          ),
+        ),
+      );
+      return;
+    }
     
     if (_selectedProject == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -304,6 +378,7 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
         const Text('Dock', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600)),
         const SizedBox(height: 24),
         if (_projects.isEmpty) _buildProjectHint(),
+        if (_projects.isNotEmpty && _selectedLabel == null) _buildLabelHint(),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
