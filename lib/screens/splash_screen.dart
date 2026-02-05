@@ -61,10 +61,11 @@ class _SplashScreenState extends State<SplashScreen> {
           if (profile['success'] == true) {
             if (!mounted) return;
             final bool onboarded = profile['has_completed_onboarding'] == true;
+            final bool invited = profile['invited'] == true;
             if (onboarded) {
               Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => MainAppShell()));
             } else {
-              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => OnboardingScreen()));
+              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => OnboardingScreen(showInviteStep: !invited)));
             }
             return;
           }

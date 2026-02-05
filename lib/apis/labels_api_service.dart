@@ -4,7 +4,7 @@ import 'package:klarto/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LabelsApiService {
-  static const String _baseUrl = AppConfig.baseUrl;
+  static final String _baseUrl = AppConfig.baseUrl;
 
   Future<Map<String, dynamic>> createLabel({
     required String name,

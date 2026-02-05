@@ -23,9 +23,6 @@ class TodayScreenState extends State<TodayScreen> {
   void initState() {
     super.initState();
     _todosFuture = _fetchTodayTodos();
-    // This was causing a "setState during build" error.
-    // Deferring it until after the first frame prevents the error.
-    WidgetsBinding.instance.addPostFrameCallback((_) => widget.onNeedsRefresh());
   }
 
   void refresh() {
@@ -38,7 +35,10 @@ class TodayScreenState extends State<TodayScreen> {
     final todayString = "${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
     final result = await _todosApiService.getTodos(filter: 'due_today', date: todayString);
     if (result['success'] && result['data'] is List) {
-      return (result['data'] as List).map((json) => Todo.fromJson(json)).toList();
+      return (result['data'] as List)
+          .map((json) => Todo.fromJson(json))
+          .where((todo) => !todo.isCompleted) // Extra safety check: hide completed todos
+          .toList();
     }
     return [];
   }
@@ -67,7 +67,7 @@ class TodayScreenState extends State<TodayScreen> {
             future: _todosFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
+                return const SizedBox.shrink();
               }
               if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(child: Text('No todos due today.'));

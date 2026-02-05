@@ -11,6 +11,8 @@ class Todo {
   String? labelId;
   String? projectName;
   String? projectId;
+  String? teamId;
+  String? teamName;
 
   Todo({
     required this.id,
@@ -25,6 +27,8 @@ class Todo {
     this.labelId,
     this.projectName,
     this.projectId,
+    this.teamId,
+    this.teamName,
   });
 
   factory Todo.fromJson(Map<String, dynamic> json) {
@@ -41,6 +45,8 @@ class Todo {
       labelId: json['label_id'] as String?,
       projectName: json['project_name'] as String?,
       projectId: json['project_id'] as String?,
+      teamId: json['team_id'] as String?,
+      teamName: json['team_name'] as String?,
     );
   }
 

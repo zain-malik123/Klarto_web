@@ -9,6 +9,9 @@ import 'package:klarto/widgets/priority_selection_dialog.dart';
 import 'package:klarto/widgets/label_selection_dialog.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import 'package:klarto/apis/user_api_service.dart';
+import 'package:klarto/widgets/add_project_dialog.dart';
+
 class AddTodoDialog extends StatefulWidget {
   final Project? initialProject;
   final String? initialDate; // yyyy-MM-dd
@@ -30,6 +33,11 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
   final _descriptionController = TextEditingController();
   final _api = TodosApiService();
   final _labelsApi = LabelsApiService();
+  final _userApi = UserApiService();
+
+  final List<Project> _projects = [];
+  final List<String> _teams = [];
+  Project? _selectedProject;
   
   DateTimeSelection? _dateTimeSelection;
   int _selectedPriority = 4;
@@ -40,6 +48,39 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
   void initState() {
     super.initState();
     _initDefaults();
+    _loadProjects();
+    _loadTeams();
+  }
+
+  Future<void> _loadTeams() async {
+    try {
+      final res = await _userApi.getTeams();
+      if (res['success'] == true && res['teams'] is List) {
+        final list = (res['teams'] as List).map((t) => (t['name'] ?? '').toString()).toList();
+        setState(() {
+          _teams.clear();
+          _teams.addAll(list);
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _loadProjects() async {
+    try {
+      final res = await _userApi.getProjects();
+      if (res['success'] == true && res['projects'] is List) {
+        final list = (res['projects'] as List).map((p) => Project.fromJson(p)).toList();
+        setState(() {
+          _projects.clear();
+          _projects.addAll(list);
+          if (widget.initialProject != null) {
+            _selectedProject = widget.initialProject;
+          } else if (_projects.isNotEmpty) {
+            _selectedProject = _projects.first;
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   void _initDefaults() {
@@ -102,7 +143,26 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
 
   Future<void> _handleSave() async {
     String title = _titleController.text.trim();
-    if (widget.initialProject == null) return;
+    if (_selectedProject == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please create or select a project first.'),
+          backgroundColor: Colors.orange[800],
+          action: SnackBarAction(
+            label: 'ADD PROJECT',
+            textColor: Colors.white,
+            onPressed: () async {
+              await showDialog(
+                context: context,
+                builder: (context) => AddProjectDialog(teams: _teams ?? []),
+              );
+              _loadProjects();
+            },
+          ),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isSaving = true);
 
@@ -113,8 +173,8 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
     final res = await _api.createTodo(
       title: title,
       description: _descriptionController.text.trim(),
-      projectName: widget.initialProject!.name,
-      projectId: widget.initialProject!.id,
+      projectName: _selectedProject!.name,
+      projectId: _selectedProject!.id,
       dueDate: _dateTimeSelection?.date != null ? DateFormat('yyyy-MM-dd').format(_dateTimeSelection!.date!) : '',
       dueTime: _dateTimeSelection?.time != null ? '${_dateTimeSelection!.time!.hour.toString().padLeft(2, '0')}:${_dateTimeSelection!.time!.minute.toString().padLeft(2, '0')}' : '09:00',
       repeatValue: _dateTimeSelection?.repeatValue ?? 'No Repeat',
@@ -150,18 +210,30 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
               children: [
                 const Text('Add Task', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                 const Spacer(),
-                if (widget.initialProject != null)
+                if (_projects.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF0F0F0),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text(widget.initialProject!.name, style: const TextStyle(fontSize: 12, color: Color(0xFF707070))),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<Project>(
+                        value: _projects.any((p) => p.id == _selectedProject?.id) ? _projects.firstWhere((p) => p.id == _selectedProject?.id) : (_projects.isNotEmpty ? _projects.first : null),
+                        items: _projects.map<DropdownMenuItem<Project>>((p) => DropdownMenuItem<Project>(
+                          value: p,
+                          child: Text(p.name, style: const TextStyle(fontSize: 12, color: Color(0xFF707070))),
+                        )).toList(),
+                        onChanged: (p) => setState(() => _selectedProject = p),
+                        icon: const Icon(Icons.keyboard_arrow_down, size: 16),
+                      ),
+                    ),
                   ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            if (_projects.isEmpty) _buildProjectHint(),
+            const SizedBox(height: 10),
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(
@@ -192,7 +264,7 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
                   if (result != null) setState(() => _dateTimeSelection = result);
                 }),
                 const SizedBox(width: 8),
-                _buildBadgeButton('assets/icons/priority.svg', 'P$_selectedPriority', onPressed: () async {
+                _buildBadgeButton('assets/icons/priority.svg', _selectedPriority == null ? '' : 'P$_selectedPriority', onPressed: () async {
                   final result = await showDialog<int>(
                     context: context,
                     builder: (context) => const PrioritySelectionDialog(),
@@ -200,13 +272,19 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
                   if (result != null) setState(() => _selectedPriority = result);
                 }),
                 const SizedBox(width: 8),
-                _buildBadgeButton('assets/icons/tag.svg', _selectedLabel?.name ?? 'Label', onPressed: () async {
-                  final result = await showDialog<Label>(
-                    context: context,
-                    builder: (context) => const LabelSelectionDialog(),
-                  );
-                  if (result != null) setState(() => _selectedLabel = result);
-                }),
+                _buildBadgeButton(
+                  'assets/icons/tag.svg', 
+                  _selectedLabel?.name ?? '', 
+                  overrideIcon: Icons.label,
+                  iconColor: _selectedLabel?.color != null ? _hexToColor(_selectedLabel!.color!) : null,
+                  onPressed: () async {
+                    final result = await showDialog<Label>(
+                      context: context,
+                      builder: (context) => const LabelSelectionDialog(),
+                    );
+                    if (result != null) setState(() => _selectedLabel = result);
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 32),
@@ -234,7 +312,64 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
     );
   }
 
-  Widget _buildBadgeButton(String iconPath, String label, {required VoidCallback onPressed}) {
+  Widget _buildProjectHint() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4E5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFFB347).withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFE67E22), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Before adding a todo, you need a project.',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFFC36A12)),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await showDialog(
+                      context: context,
+                      builder: (context) => AddProjectDialog(teams: _teams ?? []),
+                    );
+                    _loadProjects();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFE67E22),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                    minimumSize: const Size(0, 24),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  ),
+                  child: const Text('Add Project', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _hexToColor(String hex) {
+    try {
+      final buffer = StringBuffer();
+      if (hex.length == 6 || hex.length == 7) buffer.write('ff');
+      buffer.write(hex.replaceFirst('#', ''));
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (_) {
+      return const Color(0xFF707070);
+    }
+  }
+
+  Widget _buildBadgeButton(String iconPath, String label, {required VoidCallback onPressed, Color? iconColor, IconData? overrideIcon}) {
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(6),
@@ -247,9 +382,13 @@ class _AddTodoDialogState extends State<AddTodoDialog> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SvgPicture.asset(iconPath, width: 14, height: 14, colorFilter: const ColorFilter.mode(Color(0xFF707070), BlendMode.srcIn)),
+            if (overrideIcon != null)
+              Icon(overrideIcon, size: 14, color: iconColor ?? const Color(0xFF707070))
+            else
+              SvgPicture.asset(iconPath, width: 14, height: 14, colorFilter: ColorFilter.mode(iconColor ?? const Color(0xFF707070), BlendMode.srcIn)),
             const SizedBox(width: 6),
-            Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF707070))),
+            if (label.isNotEmpty)
+               Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF707070))),
           ],
         ),
       ),

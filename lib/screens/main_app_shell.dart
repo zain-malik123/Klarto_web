@@ -32,6 +32,7 @@ class _MainAppShellState extends State<MainAppShell> {
   final GlobalKey<SidebarState> _sidebarKey = GlobalKey<SidebarState>();
   // Removed GlobalKey for TodayScreen to avoid duplicate key collisions
   int _overdueCount = 0;
+  int _refreshCount = 0;
   final TodosApiService _todosApiService = TodosApiService();
 
   @override
@@ -50,6 +51,7 @@ class _MainAppShellState extends State<MainAppShell> {
 
   void _refreshTodos() {
     setState(() {
+      _refreshCount++;
       _todosFuture = _fetchTodos();
       // Also refresh sidebar counts/lists
       _sidebarKey.currentState?.refresh();
@@ -59,7 +61,10 @@ class _MainAppShellState extends State<MainAppShell> {
   Future<List<Todo>> _fetchTodos() async {
     final result = await _todosApiService.getTodos();
     if (result['success'] && result['data'] is List) {
-      final todos = (result['data'] as List).map((json) => Todo.fromJson(json)).toList();
+      final todos = (result['data'] as List)
+          .map((json) => Todo.fromJson(json))
+          .where((todo) => !todo.isCompleted) // Extra safety check: hide completed todos
+          .toList();
       _updateOverdueCount(todos);
       return todos;
     }
@@ -99,7 +104,7 @@ class _MainAppShellState extends State<MainAppShell> {
     // main-template (toolbar + header + list) by delegating to FilteredTodosScreen.
     if (_selectedFilter != null && _selectedFilter!.isNotEmpty) {
       return FilteredTodosScreen(
-        key: ValueKey('filter_$_selectedFilter'),
+        key: ValueKey('filter_${_selectedFilter}_$_refreshCount'),
         title: _selectedFilterTitle ?? _selectedFilter!,
         query: _selectedFilter!
       );
@@ -109,7 +114,7 @@ class _MainAppShellState extends State<MainAppShell> {
     if (_selectedPage.startsWith('team_')) {
       final teamId = _selectedPage.replaceFirst('team_', '');
       return TeamDetailsScreen(
-        key: ValueKey('team_$teamId'), 
+        key: ValueKey('team_${teamId}_$_refreshCount'), 
         teamName: _selectedPageName ?? teamId,
         onDeleted: () {
           setState(() {
@@ -124,7 +129,7 @@ class _MainAppShellState extends State<MainAppShell> {
     if (_selectedPage.startsWith('project_')) {
       final projectId = _selectedPage.replaceFirst('project_', '');
       return ProjectDetailsScreen(
-        key: ValueKey('project_$projectId'),
+        key: ValueKey('project_${projectId}_$_refreshCount'),
         projectName: _selectedPageName ?? 'Project',
         projectId: projectId,
         onDeleted: () {
@@ -138,21 +143,22 @@ class _MainAppShellState extends State<MainAppShell> {
 
     switch (_selectedPage) {
       case 'filters_and_labels':
-        return const FiltersAndLabelsScreen();
+        return FiltersAndLabelsScreen(key: ValueKey('filters_and_labels_$_refreshCount'));
       case 'today':
-        return TodayScreen(onNeedsRefresh: _refreshTodos);
+        return TodayScreen(key: ValueKey('today_$_refreshCount'), onNeedsRefresh: _refreshTodos);
       case 'overdue':
-        return const OverdueScreen();
+        return OverdueScreen(key: ValueKey('overdue_$_refreshCount'));
       case 'activity':
-        return const ActivityScreen();
+        return ActivityScreen(key: ValueKey('activity_$_refreshCount'));
       case 'notifications':
-        return const NotificationsScreen();
+        return NotificationsScreen(key: ValueKey('notifications_$_refreshCount'));
       case 'all_members':
-        return const AllMembersScreen();
+        return AllMembersScreen(key: ValueKey('all_members_$_refreshCount'));
       case 'dock':
       default:
         // The main content for the home screen.
         return Column(
+          key: ValueKey('dock_$_refreshCount'),
           children: [
             const Toolbar(),
             Padding(
@@ -165,7 +171,7 @@ class _MainAppShellState extends State<MainAppShell> {
                 future: _todosFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const SizedBox.shrink();
                   }
                   if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
                     return const Center(child: Text('No todos yet. Add one above!'));
@@ -189,9 +195,41 @@ class _MainAppShellState extends State<MainAppShell> {
             key: _sidebarKey,
             currentPage: _selectedPage, 
             onPageSelected: _onPageSelected, 
-            overdueCount: _overdueCount
+            overdueCount: _overdueCount,
+            onTodoAdded: _refreshTodos,
           ),
-          Expanded(child: _buildCurrentPage()),
+          Expanded(
+            child: Container(
+              color: const Color(0xFFF9F9F9),
+              padding: const EdgeInsets.symmetric(horizontal: 24.0),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1280),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      border: Border(
+                        left: BorderSide(color: Color(0xFFF0F0F0)),
+                        right: BorderSide(color: Color(0xFFF0F0F0)),
+                      ),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 150),
+                      switchInCurve: Curves.easeIn,
+                      switchOutCurve: Curves.easeOut,
+                      transitionBuilder: (Widget child, Animation<double> animation) {
+                        return FadeTransition(opacity: animation, child: child);
+                      },
+                      child: KeyedSubtree(
+                        key: ValueKey<String>(_selectedPage),
+                        child: _buildCurrentPage(),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

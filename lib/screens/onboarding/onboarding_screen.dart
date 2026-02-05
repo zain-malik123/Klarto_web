@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'dart:typed_data';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,6 +33,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   bool _isLoading = false;
   Map<String, Map<String, dynamic>> _inviteResults = {};
   bool _readyToFinish = false;
+  List<dynamic> _plans = [];
+  Map<String, dynamic>? _selectedPlan;
+  Map<String, dynamic>? _currentSubscription;
+  bool _isTrialSelected = false;
 
   void _nextPage() {
     if (_currentStep < (_totalSteps - 1)) {
@@ -169,6 +174,47 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _handleStep3Submit() async {
+    if (_selectedPlan == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a plan.')));
+      return;
+    }
+    _nextPage();
+  }
+
+  Future<void> _handleStep4Submit() async {
+    setState(() => _isLoading = true);
+    try {
+      // 1. Create Payment Method via Stripe
+      final paymentMethod = await Stripe.instance.createPaymentMethod(
+        params: const PaymentMethodParams.card(
+          paymentMethodData: PaymentMethodData(),
+        ),
+      );
+
+      // 2. Send Payment Method ID to our backend
+      final res = await _userApiService.subscribe(
+        planId: _selectedPlan!['id'],
+        paymentMethodId: paymentMethod.id,
+        isTrial: _isTrialSelected,
+      );
+
+      if (res['success']) {
+        _nextPage();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(res['message'])));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error processing payment. Please check your card details.')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _handleStep5Submit() async {
     final raw = _inviteController.text;
     final emails = raw.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
     if (emails.isEmpty) {
@@ -176,8 +222,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       await _completeOnboarding();
       return;
     }
-    if (emails.length > 5) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You can invite up to 5 members.')));
+    
+    final limit = _selectedPlan?['member_limit'] ?? 5;
+    if (emails.length > limit) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('You can invite up to $limit members with your plan.')));
       return;
     }
 
@@ -278,7 +326,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     },
                     physics: const NeverScrollableScrollPhysics(),
                     children: widget.showInviteStep
-                        ? [_buildStep1(), _buildStep2(), _buildStep3()]
+                        ? [_buildStep1(), _buildStep2(), _buildStep3(), _buildStep4(), _buildStep5()]
                         : [_buildStep1(), _buildStep2()],
                   ),
                 ),
@@ -293,11 +341,27 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   @override
   void initState() {
     super.initState();
-    _totalSteps = widget.showInviteStep ? 3 : 2;
+    _totalSteps = widget.showInviteStep ? 5 : 2;
     _inviteController.addListener(() {
       if (mounted) setState(() { _readyToFinish = false; });
       _scheduleMemberChecks();
     });
+    if (widget.showInviteStep) {
+      _fetchPlans();
+    }
+  }
+
+  Future<void> _fetchPlans() async {
+    final plans = await _userApiService.getSubscriptionPlans();
+    if (mounted) {
+      setState(() {
+        _plans = plans;
+        // Default to first plan if available
+        if (_plans.isNotEmpty) {
+          _selectedPlan = _plans[0];
+        }
+      });
+    }
   }
 
   @override
@@ -476,6 +540,227 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         children: [
           const SizedBox(height: 40),
           const Text(
+            'Choose Your Plan',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF252525),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Select a plan that fits your team size.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF707070),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          Expanded(
+            child: _plans.isEmpty 
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.builder(
+                itemCount: _plans.length,
+                itemBuilder: (context, index) {
+                  final plan = _plans[index];
+                  final isSelected = _selectedPlan?['id'] == plan['id'];
+                  return GestureDetector(
+                    onTap: () => setState(() => _selectedPlan = plan),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: isSelected ? const Color(0xFFF0F2FF) : Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected ? const Color(0xFF3D4CD6) : const Color(0xFFE0E0E0),
+                          width: 2,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  plan['name'],
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '${plan['member_limit']} Members Limit',
+                                  style: const TextStyle(color: Color(0xFF707070)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Text(
+                            '\$${plan['price']}',
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF3D4CD6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+          ),
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: ElevatedButton(
+              onPressed: _handleStep3Submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3D4CD6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Continue',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep4() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          const Text(
+            'Payment Details',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF252525),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+           const Text(
+            'Enter your card details to subscribe.',
+            style: TextStyle(
+              fontSize: 14,
+              color: Color(0xFF707070),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            height: 50,
+            child: CardField(
+              key: const ValueKey('stripe_card_field'),
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                labelText: 'Card Details',
+              ),
+              onCardChanged: (card) {
+                // Can use this to track card state if needed
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+          // Trial Option
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9FAFB),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFEAECF0)),
+            ),
+            child: Row(
+              children: [
+                Checkbox(
+                  value: _isTrialSelected,
+                  onChanged: (val) => setState(() => _isTrialSelected = val ?? false),
+                  activeColor: const Color(0xFF3D4CD6),
+                ),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Start 7-Day Free Trial',
+                        style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                      Text(
+                        'You won\'t be charged until after 7 days.',
+                        style: TextStyle(color: Color(0xFF707070), fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Spacer(),
+          SizedBox(
+            width: double.infinity,
+            height: 40,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _handleStep4Submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3D4CD6),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                elevation: 0,
+              ),
+              child: _isLoading
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : Text(
+                      _isTrialSelected ? 'Start Trial' : 'Pay & Continue',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStep5() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+      child: Column(
+        children: [
+          const SizedBox(height: 40),
+          const Text(
             'Invite Your Team Members',
             style: TextStyle(
               fontSize: 22,
@@ -487,15 +772,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 6),
           RichText(
             textAlign: TextAlign.center,
-            text: const TextSpan(
-              style: TextStyle(fontSize: 14, color: Color(0xFF707070)),
+            text: TextSpan(
+              style: const TextStyle(fontSize: 14, color: Color(0xFF707070)),
               children: [
-                TextSpan(text: 'You are subscribed to '),
+                const TextSpan(text: 'You are subscribed to '),
                 TextSpan(
-                  text: 'Pro Plan with 5 Members. ',
-                  style: TextStyle(color: Color(0xFF252525), fontWeight: FontWeight.normal),
+                  text: '${_selectedPlan?['name'] ?? 'Pro'} Plan with ${_selectedPlan?['member_limit'] ?? 5} Members. ',
+                  style: const TextStyle(color: Color(0xFF252525), fontWeight: FontWeight.normal),
                 ),
-                TextSpan(
+                const TextSpan(
                   text: 'Please Invite them to your team.',
                   style: TextStyle(color: Color(0xFF252525)),
                 ),
@@ -504,7 +789,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 32),
           CustomTextField(
-            label: 'Enter Member Emails (max 5, comma separated)',
+            label: 'Enter Member Emails (max ${_selectedPlan?['member_limit'] ?? 5}, comma separated)',
             hintText: 'a@b.com, c@d.com',
             controller: _inviteController,
             prefixIcon: Icons.person_outline,
@@ -560,7 +845,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             width: double.infinity,
             height: 40,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : (_readyToFinish ? _completeOnboarding : _handleStep3Submit),
+              onPressed: _isLoading ? null : (_readyToFinish ? _completeOnboarding : _handleStep5Submit),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF3D4CD6),
                 shape: RoundedRectangleBorder(
@@ -568,9 +853,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
                 elevation: 0,
               ),
-              child: const Text(
-                'Finish',
-                style: TextStyle(
+              child: Text(
+                _readyToFinish ? 'Finish' : 'Confirm & Invite',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,

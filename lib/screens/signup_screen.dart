@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:klarto/screens/main_app_shell.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:klarto/apis/auth_api_service.dart';
 import 'package:klarto/screens/verify_email_screen.dart';
@@ -17,6 +20,9 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+  );
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -76,6 +82,85 @@ class _SignupScreenState extends State<SignupScreen> {
       );
     }
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _handleGoogleSignup() async {
+    try {
+      setState(() => _isLoading = true);
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to get Google ID Token.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final result = await _authApiService.googleLogin(
+        idToken: idToken,
+      );
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+
+        if (result['success']) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('jwt_token', result['token']);
+          if (result['user_id'] != null) {
+            await prefs.setString('user_id', result['user_id']);
+          }
+
+          if (result['has_completed_onboarding'] == true) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const MainAppShell()),
+              (route) => false,
+            );
+          } else {
+            // New user signed up via Google, go to onboarding
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      const MainAppShell()), // Assuming MainAppShell handles routing or leads to onboarding
+              (route) => false,
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Google Signup error: ${result['message']}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Google account access failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -254,18 +339,33 @@ class _SignupScreenState extends State<SignupScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SocialLoginButton(
-                                imagePath: 'assets/icons/google.png'),
-                            SizedBox(width: 16),
-                            SocialLoginButton(
-                                imagePath: 'assets/icons/facebook.png'),
-                            SizedBox(width: 16),
-                            SocialLoginButton(
-                                imagePath: 'assets/icons/apple.png'),
-                          ],
+                        SizedBox(
+                          width: double.infinity,
+                          height: 40,
+                          child: ElevatedButton.icon(
+                            onPressed: _handleGoogleSignup,
+                            icon: Image.asset(
+                              'assets/icons/google.png',
+                              width: 18,
+                              height: 18,
+                            ),
+                            label: const Text(
+                              'Sign up with Google',
+                              style: TextStyle(
+                                color: Color(0xFF252525),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF9F9F9),
+                              elevation: 0,
+                              side: const BorderSide(color: Color(0xFFF0F0F0)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),

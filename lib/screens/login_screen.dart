@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:klarto/apis/auth_api_service.dart';
 import 'package:klarto/screens/main_app_shell.dart';
@@ -26,6 +28,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final AuthApiService _authApiService = AuthApiService();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    clientId: dotenv.env['GOOGLE_CLIENT_ID'],
+  );
 
   bool _isLoading = false;
   bool _rememberMe = false;
@@ -76,6 +81,85 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    try {
+      setState(() => _isLoading = true);
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to get Google ID Token.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        return;
+      }
+
+      final result = await _authApiService.googleLogin(
+        idToken: idToken,
+      );
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+
+        if (result['success']) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('jwt_token', result['token']);
+          if (result['user_id'] != null) {
+            await prefs.setString('user_id', result['user_id']);
+          }
+
+          if (result['has_completed_onboarding'] == true) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const MainAppShell()),
+              (route) => false,
+            );
+          } else {
+            final bool invited = result['invited'] == true;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>
+                      OnboardingScreen(showInviteStep: !invited)),
+              (route) => false,
+            );
+          }
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ?? 'Google login failed'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (error) {
+      print('Google login error: $error');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('An error occurred during Google login'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -326,19 +410,35 @@ class _LoginScreenState extends State<LoginScreen> {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SocialLoginButton(
-                                imagePath: 'assets/icons/google.png'),
-                            const SizedBox(width: 16),
-                            SocialLoginButton(
-                                imagePath: 'assets/icons/facebook.png'),
-                            const SizedBox(width: 16),
-                            SocialLoginButton(
-                                imagePath: 'assets/icons/apple.png'),
-                          ],
+                        SizedBox(
+                          width: double.infinity,
+                          height: 40,
+                          child: ElevatedButton.icon(
+                            onPressed: _handleGoogleLogin,
+                            icon: Image.asset(
+                              'assets/icons/google.png',
+                              width: 18,
+                              height: 18,
+                            ),
+                            label: const Text(
+                              'Login with google',
+                              style: TextStyle(
+                                color: Color(0xFF252525),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF9F9F9),
+                              elevation: 0,
+                              side: const BorderSide(color: Color(0xFFF0F0F0)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
                         ),
+                        const SizedBox(height: 16),
                       ],
                     ),
                   ),

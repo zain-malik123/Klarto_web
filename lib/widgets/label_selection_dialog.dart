@@ -45,7 +45,7 @@ class _LabelSelectionDialogState extends State<LabelSelectionDialog> {
                 return const Center(child: CircularProgressIndicator());
               }
               if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-                return const Center(child: Text('No labels found.'));
+                return const SizedBox.shrink();
               }
               final labels = snapshot.data!;
               return ListView.builder(
@@ -71,12 +71,27 @@ class _LabelSelectionDialogState extends State<LabelSelectionDialog> {
         height: 40,
         child: Row(
           children: [
-            SvgPicture.asset('assets/icons/tag.svg', width: 18, height: 18, colorFilter: const ColorFilter.mode(Color(0xFF707070), BlendMode.srcIn)),
+            Icon(
+              Icons.label,
+              size: 18,
+              color: label.color != null ? _hexToColor(label.color!) : const Color(0xFF707070),
+            ),
             const SizedBox(width: 8),
             Text(label.name, style: const TextStyle(fontSize: 14, color: Color(0xFF383838), fontWeight: FontWeight.w400)),
           ],
         ),
       ),
     );
+  }
+
+  Color _hexToColor(String hex) {
+    try {
+      final buffer = StringBuffer();
+      if (hex.length == 6 || hex.length == 7) buffer.write('ff');
+      buffer.write(hex.replaceFirst('#', ''));
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (_) {
+      return const Color(0xFF707070);
+    }
   }
 }

@@ -6,7 +6,7 @@ import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'dart:io';
+import 'dart:io' as io;
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:intl/intl.dart';
@@ -167,7 +167,7 @@ class _NotesModalState extends State<NotesModal> {
         final response = await http.get(Uri.parse(path));
         bytes = response.bodyBytes;
       } else {
-        bytes = await File(path).readAsBytes();
+        bytes = await XFile(path).readAsBytes();
       }
       
       final base64Audio = base64Encode(bytes);
@@ -184,7 +184,7 @@ class _NotesModalState extends State<NotesModal> {
       
       if (!kIsWeb) {
         // Cleanup local file
-        await File(path).delete();
+        await io.File(path).delete();
       }
     } catch (_) {}
   }

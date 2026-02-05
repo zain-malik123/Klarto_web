@@ -4,7 +4,7 @@ import 'package:klarto/config.dart';
 
 class AuthApiService {
   // Centralized base URL for the authentication endpoints.
-  static const String _authUrl = '${AppConfig.baseUrl}/auth';
+  static final String _authUrl = '${AppConfig.baseUrl}/auth';
 
   Future<Map<String, dynamic>> signup({
     required String name,
@@ -115,6 +115,42 @@ class AuthApiService {
         return {'success': true, 'message': responseBody['message']};
       } else {
         return {'success': false, 'message': responseBody['message'] ?? 'An error occurred.'};
+      }
+    } catch (e) {
+      return {'success': false, 'message': 'Failed to connect to the server.'};
+    }
+  }
+
+  Future<Map<String, dynamic>> googleLogin({
+    required String idToken,
+  }) async {
+    final url = Uri.parse('$_authUrl/google');
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'idToken': idToken,
+        }),
+      );
+
+      final responseBody = json.decode(response.body);
+
+      if (response.statusCode == 200) {
+        return {
+          'success': true,
+          'token': responseBody['token'],
+          'user_id': responseBody['user_id'],
+          'invited': responseBody['invited'] == true,
+          'has_completed_onboarding':
+              responseBody['has_completed_onboarding'] == true,
+        };
+      } else {
+        return {
+          'success': false,
+          'message': responseBody['message'] ?? 'Google login failed.'
+        };
       }
     } catch (e) {
       return {'success': false, 'message': 'Failed to connect to the server.'};

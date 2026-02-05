@@ -84,13 +84,13 @@ class _FiltersAndLabelsScreenState extends State<FiltersAndLabelsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Colors.transparent, // Let parent handle background
       body: Column(
         children: [
           const Toolbar(),
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(120, 28, 120, 28),
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -103,7 +103,7 @@ class _FiltersAndLabelsScreenState extends State<FiltersAndLabelsScreen> {
                     future: _filtersFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const SizedBox.shrink();
                       }
                       if (snapshot.hasError || !snapshot.hasData) {
                         return const Text('Failed to load filters.');
@@ -127,7 +127,7 @@ class _FiltersAndLabelsScreenState extends State<FiltersAndLabelsScreen> {
                     future: _labelsFuture,
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
+                        return const SizedBox.shrink();
                       }
                       if (snapshot.hasError || !snapshot.hasData) {
                         return const Text('Failed to load labels.');
@@ -191,7 +191,14 @@ class _FiltersAndLabelsScreenState extends State<FiltersAndLabelsScreen> {
       ),
       child: Row(
         children: [
-          SvgPicture.asset(type == 'Filters' ? 'assets/icons/filter.svg' : 'assets/icons/tag.svg', width: 20, height: 20, colorFilter: const ColorFilter.mode(Color(0xFF383838), BlendMode.srcIn)),
+          if (type == 'Filters')
+            SvgPicture.asset('assets/icons/filter.svg', width: 20, height: 20, colorFilter: const ColorFilter.mode(Color(0xFF383838), BlendMode.srcIn))
+          else
+            Icon(
+              Icons.label,
+              size: 20,
+              color: item['color'] != null ? _hexToColor(item['color'] as String) : const Color(0xFF383838),
+            ),
           const SizedBox(width: 6),
           // Make the name tappable for Filters to open a filtered todo view
           if (type == 'Filters')
@@ -267,6 +274,17 @@ class _FiltersAndLabelsScreenState extends State<FiltersAndLabelsScreen> {
         ],
       ),
     );
+  }
+
+  Color _hexToColor(String hex) {
+    try {
+      final buffer = StringBuffer();
+      if (hex.length == 6 || hex.length == 7) buffer.write('ff');
+      buffer.write(hex.replaceFirst('#', ''));
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (_) {
+      return const Color(0xFF383838);
+    }
   }
 
   Widget _buildActionIcon(String iconPath, [VoidCallback? onPressed]) {

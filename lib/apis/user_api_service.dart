@@ -6,7 +6,7 @@ import 'package:klarto/config.dart';
 import 'package:path/path.dart' as p;
 
 class UserApiService {
-	static const String _baseUrl = AppConfig.baseUrl;
+	static final String _baseUrl = AppConfig.baseUrl;
 
 	Future<Map<String, String>> _getHeaders() async {
 		final prefs = await SharedPreferences.getInstance();
@@ -200,6 +200,54 @@ class UserApiService {
 			return {'success': false, 'message': body['message'] ?? 'Failed to fetch teams'};
 		} catch (e) {
 			return {'success': false, 'message': 'Network error occurred.'};
+		}
+	}
+
+	Future<List<dynamic>> getSubscriptionPlans() async {
+		final url = Uri.parse('$_baseUrl/plans');
+		try {
+			final response = await http.get(url);
+			if (response.statusCode == 200) {
+				return json.decode(response.body) as List<dynamic>;
+			}
+			return [];
+		} catch (e) {
+			return [];
+		}
+	}
+
+	Future<Map<String, dynamic>> subscribe({required String planId, required String paymentMethodId, bool isTrial = false}) async {
+		final url = Uri.parse('$_baseUrl/subscribe');
+		final headers = await _getHeaders();
+		try {
+			final response = await http.post(
+				url,
+				headers: headers,
+				body: json.encode({
+					'plan_id': planId,
+					'payment_method_id': paymentMethodId,
+					'is_trial': isTrial,
+				}),
+			);
+			final body = json.decode(response.body);
+			if (response.statusCode == 200) return {'success': true};
+			return {'success': false, 'message': body['message'] ?? 'Subscription failed'};
+		} catch (e) {
+			return {'success': false, 'message': 'Network error occurred.'};
+		}
+	}
+
+	Future<Map<String, dynamic>?> getCurrentSubscription() async {
+		final url = Uri.parse('$_baseUrl/subscription');
+		final headers = await _getHeaders();
+		try {
+			final response = await http.get(url, headers: headers);
+			if (response.statusCode == 200) {
+				return json.decode(response.body) as Map<String, dynamic>?;
+			}
+			return null;
+		} catch (e) {
+			return null;
 		}
 	}
 

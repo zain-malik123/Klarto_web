@@ -4,7 +4,7 @@ import 'package:klarto/config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class TodosApiService {
-  static const String _todosUrl = '${AppConfig.baseUrl}/todos';
+  static final String _todosUrl = '${AppConfig.baseUrl}/todos';
 
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
@@ -79,6 +79,7 @@ class TodosApiService {
     String? labelId,
     String? projectName,
     String? projectId,
+    String? teamId,
   }) async {
     final uri = Uri.parse('$_todosUrl/$id');
     final headers = await _getHeaders();
@@ -92,6 +93,7 @@ class TodosApiService {
     if (labelId != null) body['label_id'] = labelId;
     if (projectName != null) body['project_name'] = projectName;
     if (projectId != null) body['project_id'] = projectId;
+    if (teamId != null) body['team_id'] = teamId;
 
     final response = await http.patch(
       uri,
@@ -149,6 +151,33 @@ class TodosApiService {
         'priority': priority,
         'label_id': labelId,
       }),
+    );
+    return {'success': response.statusCode == 200};
+  }
+
+  Future<Map<String, dynamic>> updateSubTodo({
+    required String id,
+    String? title,
+    String? description,
+    String? dueDate,
+    String? dueTime,
+    int? priority,
+    String? labelId,
+  }) async {
+    final uri = Uri.parse('$_todosUrl/sub-todos/$id');
+    final headers = await _getHeaders();
+    final body = <String, dynamic>{};
+    if (title != null) body['title'] = title;
+    if (description != null) body['description'] = description;
+    if (dueDate != null) body['due_date'] = dueDate;
+    if (dueTime != null) body['due_time'] = dueTime;
+    if (priority != null) body['priority'] = priority;
+    if (labelId != null) body['label_id'] = labelId;
+
+    final response = await http.patch(
+      uri,
+      headers: headers,
+      body: json.encode(body),
     );
     return {'success': response.statusCode == 200};
   }

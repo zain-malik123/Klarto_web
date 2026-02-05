@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:klarto/widgets/home/toolbar.dart';
 import 'package:klarto/apis/todos_api_service.dart';
@@ -42,6 +43,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   String _searchQuery = '';
   String _currentSort = 'Default';
   final TextEditingController _searchController = TextEditingController();
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
@@ -148,6 +150,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
   Widget build(BuildContext context) {
     // Filter by search
     List<Todo> filtered = _allTodos.where((t) {
+      if (t.isCompleted) return false;
       return t.title.toLowerCase().contains(_searchQuery) ||
              (t.description ?? '').toLowerCase().contains(_searchQuery);
     }).toList();
@@ -181,7 +184,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
           child: _isLoading 
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-            padding: const EdgeInsets.all(32.0),
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -318,10 +321,27 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
     else if (todo.priority == 3) priorityColor = _indigoPrimary;
     else if (todo.priority == 4) priorityColor = _green;
 
+    final bool isSelected = _selectedIds.contains(todo.id);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: InkWell(
         onTap: () async {
+          final keys = HardwareKeyboard.instance.logicalKeysPressed;
+          final bool isControl = keys.contains(LogicalKeyboardKey.controlLeft) || keys.contains(LogicalKeyboardKey.controlRight);
+          final bool isShift = keys.contains(LogicalKeyboardKey.shiftLeft) || keys.contains(LogicalKeyboardKey.shiftRight);
+
+          if (isControl || isShift) {
+            setState(() {
+              if (_selectedIds.contains(todo.id)) {
+                _selectedIds.remove(todo.id);
+              } else {
+                _selectedIds.add(todo.id);
+              }
+            });
+            return;
+          }
+
           await showDialog(
             context: context,
             builder: (context) => TaskModal(
@@ -333,8 +353,8 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(color: _borderGray),
+            color: isSelected ? _indigoPrimary.withOpacity(0.08) : Colors.white,
+            border: Border.all(color: isSelected ? _indigoPrimary : _borderGray),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Row(
@@ -342,17 +362,37 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
               // Checkbox
               GestureDetector(
                 onTap: () async {
-                  await _todosApi.updateTodoCompletion(id: todo.id, isCompleted: !todo.isCompleted);
+                  final keys = HardwareKeyboard.instance.logicalKeysPressed;
+                  final bool isControl = keys.contains(LogicalKeyboardKey.controlLeft) || keys.contains(LogicalKeyboardKey.controlRight);
+                  final bool isShift = keys.contains(LogicalKeyboardKey.shiftLeft) || keys.contains(LogicalKeyboardKey.shiftRight);
+
+                  if (isControl || isShift) {
+                    setState(() {
+                      if (_selectedIds.contains(todo.id)) {
+                        _selectedIds.remove(todo.id);
+                      } else {
+                        _selectedIds.add(todo.id);
+                      }
+                    });
+                    return;
+                  }
+
+                  // Normal tap: Mark as complete & vanish straight away (optimistic)
+                  setState(() {
+                    todo.isCompleted = true; 
+                  });
+                  await _todosApi.updateTodoCompletion(id: todo.id, isCompleted: true);
                   _loadProjectTodos();
                 },
                 child: Container(
                   width: 20,
                   height: 20,
                   decoration: BoxDecoration(
-                    border: Border.all(color: priorityColor == Colors.transparent ? _borderGray : priorityColor, width: 2),
+                    border: Border.all(color: (todo.isCompleted || isSelected) ? (priorityColor == Colors.transparent ? _indigoPrimary : priorityColor) : (priorityColor == Colors.transparent ? _borderGray : priorityColor), width: 2),
                     borderRadius: BorderRadius.circular(6),
+                    color: (todo.isCompleted || isSelected) ? (priorityColor == Colors.transparent ? _indigoPrimary : priorityColor) : Colors.transparent,
                   ),
-                  child: todo.isCompleted ? Icon(Icons.check, size: 14, color: priorityColor) : null,
+                  child: (todo.isCompleted || isSelected) ? const Icon(Icons.check, size: 14, color: Colors.white) : null,
                 ),
               ),
               const SizedBox(width: 12),
@@ -362,7 +402,7 @@ class _ProjectDetailsScreenState extends State<ProjectDetailsScreen> {
                   todo.title,
                   style: TextStyle(
                     fontSize: 15,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: _textBlack,
                     decoration: todo.isCompleted ? TextDecoration.lineThrough : null,
                   ),

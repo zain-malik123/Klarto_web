@@ -14,9 +14,14 @@ class Sidebar extends StatefulWidget {
   final String currentPage;
   final Function(String, {String? name}) onPageSelected;
   final int overdueCount;
+  final VoidCallback? onTodoAdded;
 
   const Sidebar({
-    super.key, required this.currentPage, required this.onPageSelected, required this.overdueCount,
+    super.key,
+    required this.currentPage,
+    required this.onPageSelected,
+    required this.overdueCount,
+    this.onTodoAdded,
   });
 
   @override
@@ -262,10 +267,8 @@ class SidebarState extends State<Sidebar> {
                         builder: (context) => AddTodoDialog(
                           // No initial project/date for the global add button
                           onTodoAdded: () {
-                            // If we're on a page that needs refreshing, we might need a way to notify it.
-                            // For now, let's just count on the next page view or a global refresh if needed.
-                            if (Navigator.canPop(context)) {
-                              // Navigator.pop(context); // Not needed as dialog pops itself on success
+                            if (widget.onTodoAdded != null) {
+                              widget.onTodoAdded!();
                             }
                           },
                         ),

@@ -1,23 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
 import 'package:klarto/models/todo.dart';
 import 'package:klarto/apis/todos_api_service.dart';
 import 'package:klarto/widgets/task_modal.dart';
 
-class TodoList extends StatelessWidget {
+class TodoList extends StatefulWidget {
   final List<Todo> todos;
   final VoidCallback? onTodoChanged;
   const TodoList({super.key, required this.todos, this.onTodoChanged});
 
   @override
+  State<TodoList> createState() => _TodoListState();
+}
+
+class _TodoListState extends State<TodoList> {
+  final Set<String> _selectedIds = {};
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return ListView.builder(
       // Add horizontal padding to the list itself
-      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-      itemCount: todos.length,
+      padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+      itemCount: widget.todos.length,
       itemBuilder: (context, index) {
-        return TodoItem(todo: todos[index], onChanged: onTodoChanged);
+        final todo = widget.todos[index];
+        return TodoItem(
+          todo: todo, 
+          onChanged: widget.onTodoChanged,
+          isSelected: _selectedIds.contains(todo.id),
+          onSelect: () => _toggleSelection(todo.id),
+        );
       },
     );
   }
@@ -26,7 +50,16 @@ class TodoList extends StatelessWidget {
 class TodoItem extends StatefulWidget {
   final Todo todo;
   final VoidCallback? onChanged;
-  const TodoItem({super.key, required this.todo, this.onChanged});
+  final bool isSelected;
+  final VoidCallback onSelect;
+
+  const TodoItem({
+    super.key, 
+    required this.todo, 
+    this.onChanged,
+    this.isSelected = false,
+    required this.onSelect,
+  });
 
   @override
   State<TodoItem> createState() => _TodoItemState();
@@ -52,11 +85,15 @@ class _TodoItemState extends State<TodoItem> {
     }
   }
 
-  Color _hexToColor(String hexString) {
-    final buffer = StringBuffer();
-    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
-    buffer.write(hexString.replaceFirst('#', ''));
-    return Color(int.parse(buffer.toString(), radix: 16));
+  Color _hexToColor(String hex) {
+    try {
+      final buffer = StringBuffer();
+      if (hex.length == 6 || hex.length == 7) buffer.write('ff');
+      buffer.write(hex.replaceFirst('#', ''));
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (_) {
+      return const Color(0xFF707070);
+    }
   }
 
   String _formatDueDate(String? dateStr) {
@@ -83,10 +120,23 @@ class _TodoItemState extends State<TodoItem> {
 
   @override
   Widget build(BuildContext context) {
+    // If the task was marked as completed LOCALLY (but was originally incomplete),
+    // hide it immediately for the "straight away" vanish effect.
+    // If it was already completed when fetched (e.g. in Completed view), show it.
+    if (_isCompleted && !widget.todo.isCompleted) return const SizedBox.shrink();
+
     final priorityColor = _getPriorityColor(widget.todo.priority);
 
     return GestureDetector(
       onTap: () async {
+        final isControlPressed = HardwareKeyboard.instance.isControlPressed;
+        final isShiftPressed = HardwareKeyboard.instance.isShiftPressed;
+
+        if (isControlPressed || isShiftPressed) {
+          widget.onSelect();
+          return;
+        }
+
         await showDialog(
           context: context,
           builder: (context) => TaskModal(
@@ -101,8 +151,11 @@ class _TodoItemState extends State<TodoItem> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFFF0F0F0)),
+          color: widget.isSelected ? const Color(0xFFF0F2FF) : Colors.white,
+          border: Border.all(
+            color: widget.isSelected ? const Color(0xFF3D4CD6) : const Color(0xFFF0F0F0),
+            width: widget.isSelected ? 1.5 : 1,
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Column(
@@ -112,14 +165,24 @@ class _TodoItemState extends State<TodoItem> {
               children: [
                 // Checkbox
                 GestureDetector(
-                  onTap: _loading ? null : _toggleCompleted,
+                  onTap: _loading ? null : () {
+                    final keys = HardwareKeyboard.instance.logicalKeysPressed;
+                    final isControlPressed = keys.contains(LogicalKeyboardKey.controlLeft) || keys.contains(LogicalKeyboardKey.controlRight);
+                    final isShiftPressed = keys.contains(LogicalKeyboardKey.shiftLeft) || keys.contains(LogicalKeyboardKey.shiftRight);
+                    
+                    if (isControlPressed || isShiftPressed) {
+                      widget.onSelect();
+                    } else {
+                      _toggleCompleted();
+                    }
+                  },
                   child: Padding(
                     padding: const EdgeInsets.all(4.0),
                     child: _loading
-                        ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                         : Icon(
-                            _isCompleted ? Icons.check_box : Icons.check_box_outline_blank,
-                            color: _isCompleted ? const Color(0xFF3D4CD6) : priorityColor,
+                            (_isCompleted || widget.isSelected) ? Icons.check_box : Icons.check_box_outline_blank,
+                            color: (_isCompleted || widget.isSelected) ? const Color(0xFF3D4CD6) : priorityColor,
                             size: 20,
                           ),
                   ),
@@ -140,7 +203,11 @@ class _TodoItemState extends State<TodoItem> {
                     _buildInfoChip(Icons.calendar_today_outlined, _formatDueDate(widget.todo.dueDate)),
                   const SizedBox(width: 12),
                   if (widget.todo.labelName != null)
-                    _buildInfoChip(Icons.label_outline, widget.todo.labelName!),
+                    _buildInfoChip(
+                      Icons.label, 
+                      widget.todo.labelName!,
+                      color: widget.todo.labelColor != null ? _hexToColor(widget.todo.labelColor!) : null,
+                    ),
                 ],
               ),
             )

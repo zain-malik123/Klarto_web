@@ -8,17 +8,20 @@ import 'package:klarto/models/label.dart';
 import 'package:klarto/apis/todos_api_service.dart';
 import 'package:klarto/apis/labels_api_service.dart';
 
+import 'package:klarto/models/sub_todo.dart';
+
 class AddSubTodoDialog extends StatefulWidget {
   final String parentTodoId;
-  const AddSubTodoDialog({super.key, required this.parentTodoId});
+  final SubTodo? subTodo; // If provided, we are in edit mode
+  const AddSubTodoDialog({super.key, required this.parentTodoId, this.subTodo});
 
   @override
   State<AddSubTodoDialog> createState() => _AddSubTodoDialogState();
 }
 
 class _AddSubTodoDialogState extends State<AddSubTodoDialog> {
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  late TextEditingController _titleController;
+  late TextEditingController _descriptionController;
   final _todosApiService = TodosApiService();
   final _labelsApiService = LabelsApiService();
   
@@ -30,7 +33,28 @@ class _AddSubTodoDialogState extends State<AddSubTodoDialog> {
   @override
   void initState() {
     super.initState();
-    _dateTimeSelection = _defaultDateTimeSelection();
+    _titleController = TextEditingController(text: widget.subTodo?.title ?? '');
+    _descriptionController = TextEditingController(text: widget.subTodo?.description ?? '');
+    
+    if (widget.subTodo != null) {
+      _selectedPriority = widget.subTodo!.priority ?? 4;
+      if (widget.subTodo!.dueDate != null) {
+        final date = DateTime.tryParse(widget.subTodo!.dueDate!);
+        TimeOfDay? time;
+        if (widget.subTodo!.dueTime != null) {
+          final parts = widget.subTodo!.dueTime!.split(':');
+          if (parts.length == 2) {
+             time = TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+          }
+        }
+        _dateTimeSelection = DateTimeSelection(date: date, time: time, repeatValue: 'No Repeat');
+      } else {
+        _dateTimeSelection = _defaultDateTimeSelection();
+      }
+    } else {
+      _dateTimeSelection = _defaultDateTimeSelection();
+    }
+    
     _loadDefaultLabel();
   }
 
@@ -63,15 +87,28 @@ class _AddSubTodoDialogState extends State<AddSubTodoDialog> {
 
     setState(() => _isSaving = true);
     
-    final res = await _todosApiService.addSubTodo(
-      todoId: widget.parentTodoId,
-      title: title,
-      description: _descriptionController.text.trim(),
-      dueDate: _dateTimeSelection?.date != null ? DateFormat('yyyy-MM-dd').format(_dateTimeSelection!.date!) : null,
-      dueTime: _dateTimeSelection?.time != null ? '${_dateTimeSelection!.time!.hour.toString().padLeft(2, '0')}:${_dateTimeSelection!.time!.minute.toString().padLeft(2, '0')}' : null,
-      priority: _selectedPriority,
-      labelId: _selectedLabel?.id,
-    );
+    Map<String, dynamic> res;
+    if (widget.subTodo != null) {
+      res = await _todosApiService.updateSubTodo(
+        id: widget.subTodo!.id,
+        title: title,
+        description: _descriptionController.text.trim(),
+        dueDate: _dateTimeSelection?.date != null ? DateFormat('yyyy-MM-dd').format(_dateTimeSelection!.date!) : null,
+        dueTime: _dateTimeSelection?.time != null ? '${_dateTimeSelection!.time!.hour.toString().padLeft(2, '0')}:${_dateTimeSelection!.time!.minute.toString().padLeft(2, '0')}' : null,
+        priority: _selectedPriority,
+        labelId: _selectedLabel?.id,
+      );
+    } else {
+      res = await _todosApiService.addSubTodo(
+        todoId: widget.parentTodoId,
+        title: title,
+        description: _descriptionController.text.trim(),
+        dueDate: _dateTimeSelection?.date != null ? DateFormat('yyyy-MM-dd').format(_dateTimeSelection!.date!) : null,
+        dueTime: _dateTimeSelection?.time != null ? '${_dateTimeSelection!.time!.hour.toString().padLeft(2, '0')}:${_dateTimeSelection!.time!.minute.toString().padLeft(2, '0')}' : null,
+        priority: _selectedPriority,
+        labelId: _selectedLabel?.id,
+      );
+    }
 
     if (mounted) {
       setState(() => _isSaving = false);
@@ -79,7 +116,7 @@ class _AddSubTodoDialogState extends State<AddSubTodoDialog> {
         Navigator.pop(context, true);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to add sub-to do')),
+          const SnackBar(content: Text('Failed to save sub-to do')),
         );
       }
     }
@@ -96,9 +133,9 @@ class _AddSubTodoDialogState extends State<AddSubTodoDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Add Sub-to do',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            Text(
+              widget.subTodo != null ? 'Edit Sub-to do' : 'Add Sub-to do',
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 20),
             TextField(
@@ -140,13 +177,19 @@ class _AddSubTodoDialogState extends State<AddSubTodoDialog> {
                   if (result != null) setState(() => _selectedPriority = result);
                 }),
                 const SizedBox(width: 8),
-                _buildBadgeButton('assets/icons/tag.svg', _selectedLabel?.name ?? 'Label', onPressed: () async {
-                  final result = await showDialog<Label>(
-                    context: context,
-                    builder: (context) => const LabelSelectionDialog(),
-                  );
-                  if (result != null) setState(() => _selectedLabel = result);
-                }),
+                _buildBadgeButton(
+                  'assets/icons/tag.svg', 
+                  _selectedLabel?.name ?? 'Label', 
+                  overrideIcon: Icons.label,
+                  iconColor: _selectedLabel?.color != null ? _hexToColor(_selectedLabel!.color!) : null,
+                  onPressed: () async {
+                    final result = await showDialog<Label>(
+                      context: context,
+                      builder: (context) => const LabelSelectionDialog(),
+                    );
+                    if (result != null) setState(() => _selectedLabel = result);
+                  },
+                ),
               ],
             ),
             const SizedBox(height: 32),
@@ -176,7 +219,18 @@ class _AddSubTodoDialogState extends State<AddSubTodoDialog> {
     );
   }
 
-  Widget _buildBadgeButton(String iconPath, String label, {required VoidCallback onPressed}) {
+  Color _hexToColor(String hex) {
+    try {
+      final buffer = StringBuffer();
+      if (hex.length == 6 || hex.length == 7) buffer.write('ff');
+      buffer.write(hex.replaceFirst('#', ''));
+      return Color(int.parse(buffer.toString(), radix: 16));
+    } catch (_) {
+      return const Color(0xFF707070);
+    }
+  }
+
+  Widget _buildBadgeButton(String iconPath, String label, {required VoidCallback onPressed, Color? iconColor, IconData? overrideIcon}) {
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(6),
@@ -189,7 +243,10 @@ class _AddSubTodoDialogState extends State<AddSubTodoDialog> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            SvgPicture.asset(iconPath, width: 14, height: 14, colorFilter: const ColorFilter.mode(Color(0xFF707070), BlendMode.srcIn)),
+            if (overrideIcon != null)
+              Icon(overrideIcon, size: 14, color: iconColor ?? const Color(0xFF707070))
+            else
+              SvgPicture.asset(iconPath, width: 14, height: 14, colorFilter: ColorFilter.mode(iconColor ?? const Color(0xFF707070), BlendMode.srcIn)),
             const SizedBox(width: 6),
             Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF707070), fontWeight: FontWeight.w500)),
           ],

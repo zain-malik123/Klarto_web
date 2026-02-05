@@ -72,7 +72,7 @@ class _AddLabelDialogState extends State<AddLabelDialog> {
                 children: [
                   Row(
                     children: [
-                      SvgPicture.asset('assets/icons/tag.svg', width: 24, height: 24),
+                      Icon(Icons.label, size: 24, color: _selectedColor),
                       const SizedBox(width: 8),
                       Text(isEditing ? 'Edit Label' : 'Add Label', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Color(0xFF383838))),
                     ],

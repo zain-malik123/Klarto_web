@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 class AuthBackground extends StatelessWidget {
@@ -47,9 +48,10 @@ class BackgroundOrnaments extends StatelessWidget {
             ),
 
             // 1. .img (Top Left - Dot Grid)
+            // Moved so its center is roughly under the form's top-left corner
             Positioned(
-              top: ry(77), // 50% - 323px on 800px height
-              left: rx(75), // 50% - 285px on 720px width
+              top: h * 0.5 - 355, 
+              left: w * 0.5 - 310.5,
               child: CustomPaint(
                 size: Size(rx(141), ry(154)),
                 painter: _DotGridPainter(),
@@ -60,29 +62,12 @@ class BackgroundOrnaments extends StatelessWidget {
             Positioned(
               top: ry(635),
               left: rx(355),
-              child: CustomPaint(
-                size: Size(rx(162), ry(132)),
-                painter: _BarsPainter(),
-              ),
-            ),
-
-            // 3. .vector (Top Right - Half Ellipse)
-            Positioned(
-              top: ry(121.44), // 15.18%
-              left: rx(559.51), // 77.71%
-              child: CustomPaint(
-                size: Size(rx(78.98), ry(164.0)),
-                painter: _EllipsePainter(color: const Color(0xFFD1D4F5), isRightSide: true),
-              ),
-            ),
-
-            // 4. .vector-2 (Bottom Left - Half Ellipse)
-            Positioned(
-              top: ry(514.48), // 64.31%
-              left: rx(80.50), // 11.18%
-              child: CustomPaint(
-                size: Size(rx(78.98), ry(164.0)),
-                painter: _EllipsePainter(color: const Color(0xFFD1D4F5), isRightSide: false),
+              child: Transform.rotate(
+                angle: math.pi, // Rotated 180 degrees
+                child: CustomPaint(
+                  size: Size(rx(162), ry(132)),
+                  painter: _BarsPainter(),
+                ),
               ),
             ),
           ],
@@ -150,37 +135,3 @@ class _BarsPainter extends CustomPainter {
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
-class _EllipsePainter extends CustomPainter {
-  final Color color;
-  final bool isRightSide;
-
-  _EllipsePainter({required this.color, required this.isRightSide});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
-
-    final path = Path();
-    final w = size.width;
-    final h = size.height;
-
-    if (isRightSide) {
-      // Matches signin.html .vector outline
-      path.moveTo(0, 0);
-      path.cubicTo(w * 0.55, h * 0.01, w, h * 0.23, w, h * 0.5);
-      path.cubicTo(w, h * 0.77, w * 0.55, h * 0.99, 0, h);
-    } else {
-      // Matches signin.html .vector-2 outline (flipped)
-      path.moveTo(w, 0);
-      path.cubicTo(w * 0.45, h * 0.01, 0, h * 0.23, 0, h * 0.5);
-      path.cubicTo(0, h * 0.77, w * 0.45, h * 0.99, w, h);
-    }
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
-}

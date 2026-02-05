@@ -149,7 +149,7 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
         const Toolbar(),
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(32.0),
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -37,7 +37,10 @@ class _FilteredTodosScreenState extends State<FilteredTodosScreen> {
     }
     final result = await _todosApiService.getTodos(filter: widget.query, date: dateParam);
     if (result['success'] && result['data'] is List) {
-      return (result['data'] as List).map((json) => Todo.fromJson(json)).toList();
+      return (result['data'] as List)
+          .map((json) => Todo.fromJson(json))
+          .where((todo) => widget.query == 'completed' ? todo.isCompleted : !todo.isCompleted)
+          .toList();
     }
     return [];
   }
@@ -60,7 +63,7 @@ class _FilteredTodosScreenState extends State<FilteredTodosScreen> {
           child: FutureBuilder<List<Todo>>(
             future: _todosFuture,
             builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+              if (snapshot.connectionState == ConnectionState.waiting) return const SizedBox.shrink();
               if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) return Center(child: Text('No todos for "${widget.title}".'));
               return TodoList(todos: snapshot.data!, onTodoChanged: () => setState(() => _todosFuture = _fetchFilteredTodos()));
             },

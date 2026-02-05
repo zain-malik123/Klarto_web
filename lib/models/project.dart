@@ -4,6 +4,7 @@ class Project {
   final String color;
   final String accessType;
   final bool isFavorite;
+  final String? teamName;
 
   Project({
     required this.id,
@@ -11,6 +12,7 @@ class Project {
     required this.color,
     required this.accessType,
     required this.isFavorite,
+    this.teamName,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
@@ -20,6 +22,7 @@ class Project {
       color: json['color'] as String? ?? '#000000',
       accessType: json['access_type'] as String? ?? 'private',
       isFavorite: json['is_favorite'] as bool? ?? false,
+      teamName: json['team_name'] as String?,
     );
   }
 }

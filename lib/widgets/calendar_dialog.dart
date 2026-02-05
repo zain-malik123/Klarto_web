@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/intl.dart';
 import 'package:klarto/widgets/time_picker_dialog.dart';
 import 'package:klarto/widgets/repeat_selection_dialog.dart';
 
@@ -58,6 +57,25 @@ class _CalendarDialogState extends State<CalendarDialog> {
     setState(() {
       _currentDisplayDate = DateTime(_currentDisplayDate.year, _currentDisplayDate.month + month, 1);
     });
+  }
+
+  void _submitSelection() {
+    if (_selectedDate == null || _selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a date and time.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final selection = DateTimeSelection(
+      date: _selectedDate,
+      time: _selectedTime,
+      repeatValue: _repeatValue,
+    );
+    Navigator.of(context).pop(selection);
   }
 
   @override
@@ -159,6 +177,7 @@ class _CalendarDialogState extends State<CalendarDialog> {
     return TextFormField(
       autovalidateMode: AutovalidateMode.onUserInteraction,
       controller: _dateInputController,
+      onFieldSubmitted: (_) => _submitSelection(),
       onChanged: (value) {
         try {
           final date = DateFormat('dd/MM/yyyy').parseStrict(value);
@@ -336,24 +355,7 @@ class _CalendarDialogState extends State<CalendarDialog> {
         ),
         const SizedBox(width: 10),
         ElevatedButton(
-          onPressed: () {
-            if (_selectedDate == null || _selectedTime == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please select a date and time.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                  return;
-                }
-
-            final selection = DateTimeSelection(
-              date: _selectedDate,
-              time: _selectedTime,
-              repeatValue: _repeatValue,
-            );
-            Navigator.of(context).pop(selection);
-          },
+          onPressed: _submitSelection,
           child: const Text(
             'Done',
             style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500),

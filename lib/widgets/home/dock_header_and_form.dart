@@ -9,6 +9,7 @@ import 'package:klarto/models/project.dart';
 import 'package:klarto/apis/todos_api_service.dart';
 import 'package:klarto/apis/labels_api_service.dart';
 import 'package:klarto/apis/user_api_service.dart';
+import 'package:klarto/widgets/add_project_dialog.dart';
 
 class DockHeaderAndForm extends StatefulWidget {
   final VoidCallback onTodoAdded;
@@ -25,6 +26,7 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
   late final LabelsApiService _labelsApiService;
   late final UserApiService _userApiService;
   final List<Project> _projects = [];
+  final List<String> _teams = [];
   Project? _selectedProject;
   DateTimeSelection? _dateTimeSelection;
   int? _selectedPriority;
@@ -41,6 +43,74 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
     _labelsApiService = LabelsApiService();
     _setDefaultLabel();
     _loadProjects();
+    _loadTeams();
+  }
+
+  Future<void> _loadTeams() async {
+    try {
+      final res = await _userApiService.getTeams();
+      if (res['success'] == true && res['teams'] is List) {
+        final list = (res['teams'] as List).map((t) => (t['name'] ?? '').toString()).toList();
+        if (mounted) {
+          setState(() {
+            _teams.clear();
+            _teams.addAll(list);
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Widget _buildProjectHint() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF4E5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFFB347).withOpacity(0.5)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFE67E22), size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'No projects found!',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFC36A12)),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  'You must create a project before adding your first todo.',
+                  style: TextStyle(fontSize: 12, color: Color(0xFFC36A12)),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await showDialog(
+                context: context,
+                builder: (context) => AddProjectDialog(teams: _teams ?? []),
+              );
+              _loadProjects();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE67E22),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              minimumSize: const Size(0, 0),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+            ),
+            child: const Text('Add Project', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<String> _generateIncompleteTitle() async {
@@ -162,21 +232,27 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
       _selectedPriority = 4;
     }
 
-    if (_selectedLabel == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a label.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+    // Use default label if none selected
+    if (_selectedLabel == null && _defaultLabel != null) {
+      _selectedLabel = _defaultLabel;
     }
     
     if (_selectedProject == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select a project.'),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: const Text('Please create or select a project before adding a todo.'),
+          backgroundColor: Colors.orange[800],
+          action: SnackBarAction(
+            label: 'ADD PROJECT',
+            textColor: Colors.white,
+            onPressed: () async {
+              await showDialog(
+                context: context,
+                builder: (context) => AddProjectDialog(teams: _teams ?? []),
+              );
+              _loadProjects();
+            },
+          ),
         ),
       );
       return;
@@ -210,6 +286,16 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
     }
   }
 
+  String _getCalendarButtonLabel() {
+    if (_dateTimeSelection?.date == null) return 'Date';
+    
+    final dateStr = DateFormat('MMM d').format(_dateTimeSelection!.date!);
+    if (_dateTimeSelection!.time != null) {
+      return '$dateStr, ${_dateTimeSelection!.time!.format(context)}';
+    }
+    return dateStr;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -217,6 +303,7 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
       children: [
         const Text('Dock', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600)),
         const SizedBox(height: 24),
+        if (_projects.isEmpty) _buildProjectHint(),
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -246,42 +333,55 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  _buildBadgeButton('assets/icons/calendar.svg', 'Date', onPressed: () async {
-                    final result = await showDialog<DateTimeSelection>(
-                      context: context,
-                      builder: (context) => const CalendarDialog(),
-                    );
-                    if (result != null) {
-                      setState(() {
-                        _dateTimeSelection = result;
-                      });
-                    }
-                  }),
+                  _buildBadgeButton(
+                    'assets/icons/calendar.svg', 
+                    _getCalendarButtonLabel(), 
+                    onPressed: () async {
+                      final result = await showDialog<DateTimeSelection>(
+                        context: context,
+                        builder: (context) => const CalendarDialog(),
+                      );
+                      if (result != null) {
+                        setState(() {
+                          _dateTimeSelection = result;
+                        });
+                      }
+                    },
+                  ),
                   const SizedBox(width: 8),
-                  _buildBadgeButton('assets/icons/priority.svg', 'Priority', onPressed: () async {
-                    final result = await showDialog<int>(
-                      context: context,
-                      builder: (context) => const PrioritySelectionDialog(),
-                    );
-                    if (result != null) {
-                      setState(() {
-                        _selectedPriority = result;
-                      });
-                    }
-                  }),
+                  _buildBadgeButton(
+                    'assets/icons/priority.svg', 
+                    _selectedPriority == null ? 'Priority' : 'P$_selectedPriority', 
+                    onPressed: () async {
+                      final result = await showDialog<int>(
+                        context: context,
+                        builder: (context) => const PrioritySelectionDialog(),
+                      );
+                      if (result != null) {
+                        setState(() {
+                          _selectedPriority = result;
+                        });
+                      }
+                    },
+                  ),
                   const SizedBox(width: 8),
-                  _buildBadgeButton('assets/icons/tag.svg', 'Label', onPressed: () async {
-                    final result = await showDialog<Label>(
-                      context: context,
-                      builder: (context) => const LabelSelectionDialog(),
-                    );
-                    if (result != null) {
-                      setState(() => _selectedLabel = result);
-                    }
-                  }),
+                  _buildBadgeButton(
+                    'assets/icons/tag.svg', 
+                    _selectedLabel?.name ?? 'Label', 
+                    overrideIcon: Icons.label,
+                    iconColor: _selectedLabel?.color != null ? _hexToColor(_selectedLabel!.color!) : null,
+                    onPressed: () async {
+                      final result = await showDialog<Label>(
+                        context: context,
+                        builder: (context) => const LabelSelectionDialog(),
+                      );
+                      if (result != null) {
+                        setState(() => _selectedLabel = result);
+                      }
+                    },
+                  ),
                 ],
               ),
-              _buildSelectionInfo(),
               const Divider(height: 25, color: Color(0xFFF0F0F0)),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -361,92 +461,23 @@ class _DockHeaderAndFormState extends State<DockHeaderAndForm> {
     );
   }
 
-  Widget _buildBadgeButton(String iconPath, String label, {VoidCallback? onPressed}) {
+  Widget _buildBadgeButton(String iconPath, String label, {VoidCallback? onPressed, Color? iconColor, IconData? overrideIcon}) {
     return OutlinedButton.icon(
       onPressed: onPressed,
-      icon: SvgPicture.asset(
-        iconPath,
-        width: 12,
-        height: 12,
-        colorFilter: const ColorFilter.mode(Color(0xFF707070), BlendMode.srcIn),
-      ),
+      icon: overrideIcon != null 
+        ? Icon(overrideIcon, size: 14, color: iconColor ?? const Color(0xFF707070))
+        : SvgPicture.asset(
+            iconPath,
+            width: 12,
+            height: 12,
+            colorFilter: ColorFilter.mode(iconColor ?? const Color(0xFF707070), BlendMode.srcIn),
+          ),
       label: Text(label),
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFF707070),
         side: const BorderSide(color: Color(0xFFF0F0F0)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-      ),
-    );
-  }
-
-  Widget _buildSelectionInfo() {
-    final hasDateTime = _dateTimeSelection != null && _dateTimeSelection!.date != null;
-    final hasPriority = _selectedPriority != null;
-    final hasLabel = _selectedLabel != null;
-
-    if (!hasDateTime && !hasPriority && !hasLabel) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 12.0),
-      child: Row(
-        children: [
-          Wrap(
-            spacing: 8.0,
-            runSpacing: 8.0,
-            children: [
-              if (hasDateTime) ...[
-                _buildInfoChip(Icons.calendar_today_outlined, DateFormat('EEE, MMM d').format(_dateTimeSelection!.date!)),
-                if (_dateTimeSelection!.time != null) _buildInfoChip(Icons.access_time, _dateTimeSelection!.time!.format(context)),
-                if (_dateTimeSelection!.repeatValue != 'No Repeat') _buildInfoChip(Icons.refresh, _dateTimeSelection!.repeatValue),
-              ],
-              if (hasPriority) _buildPriorityChip(),
-              if (hasLabel) _buildInfoChip(Icons.label_outline, _selectedLabel!.name, color: _hexToColor(_selectedLabel!.color)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPriorityChip() {
-    final priorityData = {
-      1: {'label': 'Priority 1', 'color': const Color(0xFFEF4444)},
-      2: {'label': 'Priority 2', 'color': const Color(0xFFF59E0B)},
-      3: {'label': 'Priority 3', 'color': const Color(0xFF3D4CD6)},
-      4: {'label': 'Priority 4', 'color': const Color(0xFF9F9F9F)},
-    };
-
-    final data = priorityData[_selectedPriority];
-    if (data == null) return const SizedBox.shrink();
-
-    final color = data['color'] as Color;
-    final label = data['label'] as String;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [SvgPicture.asset('assets/icons/priority.svg', width: 12, height: 12, colorFilter: ColorFilter.mode(color, BlendMode.srcIn)), const SizedBox(width: 4), Text(label, style: TextStyle(fontSize: 12, color: color))],
-      ),
-    );
-  }
-
-  Widget _buildInfoChip(IconData icon, String text, {Color? color}) {
-    final chipColor = color ?? const Color(0xFF3D4CD6);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [Icon(icon, size: 12, color: chipColor), const SizedBox(width: 4), Text(text, style: TextStyle(fontSize: 12, color: chipColor))],
       ),
     );
   }

@@ -3,8 +3,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:klarto/apis/user_api_service.dart';
 
 class AddProjectDialog extends StatefulWidget {
-  final List<String> teams;
-  const AddProjectDialog({super.key, this.teams = const []});
+  final List<String>? teams;
+  const AddProjectDialog({super.key, this.teams});
 
   @override
   State<AddProjectDialog> createState() => _AddProjectDialogState();
@@ -110,8 +110,8 @@ class _AddProjectDialogState extends State<AddProjectDialog> {
                           child: DropdownButton<String>(
                             value: _selectedAccess,
                             isExpanded: true,
-                            items: ['Everyone', ...widget.teams]
-                                .map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 14))))
+                            items: ['Everyone', ...(widget.teams ?? [])]
+                                .map<DropdownMenuItem<String>>((s) => DropdownMenuItem<String>(value: s, child: Text(s, style: const TextStyle(fontSize: 14))))
                                 .toList(),
                             onChanged: (val) => setState(() => _selectedAccess = val!),
                           ),
